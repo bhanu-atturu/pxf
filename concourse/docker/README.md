@@ -49,10 +49,3 @@ changes to `pxf-build-base` and is also in charge of tagging the images as
 
 * Note: GCR_PROJECT_ID is the name of the Google Cloud Project ID
 
-## Development docker image
-
-A PXF development docker image can be pulled with the following command:
-
-```shell script
-docker pull gcr.io/${GCR_PROJECT_ID}/gpdb-pxf-dev/gpdb6-centos7-test-pxf-hdp2:latest
-```

@@ -179,10 +179,7 @@ cp ${PXF_HOME}/templates/*-site.xml ${PXF_BASE}/servers/default
 # Development With Docker
 NOTE: Since the docker container will house all Single cluster Hadoop, Greenplum and PXF, we recommend that you have at least 4 cpus and 6GB memory allocated to Docker. These settings are available under docker preferences.
 
-<!-- TODO: Understand why this only works for 6.6 RPM and not latest GPDB6 -->
-The quick and easy is to download the GPDB 6.6 RPM from Github and move it into the `/downloads` folder. Then run `./dev/start.bash` to get a docker image with a running GPDB6, Hadoop cluster and an installed PXF.
-
-If you would like more control over the GPDB installation, you can use the steps below.
+You can use the steps below to spin up a docker container:
 
 ```bash
 # Get the latest centos7 image for GPDB6
@@ -206,6 +203,11 @@ docker run --rm -it \
   "/home/gpadmin/workspace/pxf/dev/set_up_gpadmin_user.bash && /usr/sbin/sshd && su - gpadmin"
 ```
 
+Note: You can run the same command with a GPDB5 build by using the following image instead:
+```
+# Get the latest centos7 image for GPDB5
+docker pull gcr.io/data-gpdb-ud/gpdb-pxf-dev/gpdb5-centos7-test-pxf:latest
+```
 ### Setup GPDB in the Docker image
 
 Configure, build and install GPDB. This will be needed only when you use the container for the first time with GPDB source.
