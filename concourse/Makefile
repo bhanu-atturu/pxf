@@ -241,6 +241,26 @@ singlecluster:
 		-l ~/workspace/gp-continuous-integration/secrets/gpdb_common-ci-secrets.yml \
 		-v pxf-git-branch=master -p pxf-singlecluster
 
+.PHONY: pg_regress
+pg_regress:
+	$(FLY_CMD) --target=$(CONCOURSE) \
+		set-pipeline \
+		--check-creds \
+		--pipeline=pg_regress \
+		--config $(HOME)/workspace/pxf/concourse/pipelines/pg_regress_pipeline.yml \
+		--load-vars-from=$(SECRETS_HOME)/gpdb_common-ci-secrets.yml \
+		--load-vars-from=$(SECRETS_HOME)/pxf-secrets.yml \
+		--load-vars-from=$(SECRETS_HOME)/pxf-common.yml \
+		--load-vars-from=$(SECRETS_HOME)/pxf-dev.yml \
+		--var gpdb-git-branch=6X_STABLE \
+		--var gpdb-branch=6X_STABLE \
+		--var pgport=7000 \
+		--var folder-prefix=pg_regress \
+		${FLY_OPTION_NON-INTERACTIVE} || echo "Generated yaml has errors: check $${PIPELINE_FILE}"
+
+	@echo using the following command to unpause the pipeline:
+	@echo -e "\t$(FLY_CMD) -t ${CONCOURSE} unpause-pipeline --pipeline ${BUILD_PIPELINE_NAME}"
+
 # ============================= PERFORMANCE PIPELINE TARGETS =============================
 
 .PHONY: perf
@@ -288,6 +308,7 @@ query-execution-parquet-1g:
 		query-execution-pxf-parquet-tpc-h-1g-6X \
 		INPUT_FILE=ccp-provision-from-release-pxf.yml \
 		TEAM_SECRETS="--load-vars-from=${HOME}/workspace/gp-continuous-integration/secrets/pxf-perf-secrets.yml"
+
 ## ----------------------------------------------------------------------
 ## List explicit rules
 ## ----------------------------------------------------------------------

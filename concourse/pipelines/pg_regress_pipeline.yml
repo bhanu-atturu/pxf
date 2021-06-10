@@ -57,28 +57,6 @@ resources:
     username: _json_key
     password: ((pxf-cloudbuild-service-account-key))
 
-# ~/workspace/gp-continuous-integration/secrets/gpdb6-integration-testing.dev.yml
-- name: libquicklz-centos7
-  type: gcs
-  source:
-    bucket: ((gcs-bucket))
-    json_key: ((concourse-gcs-resources-service-account-key))
-    regexp: gp-internal-artifacts/centos7/libquicklz-(\d.*)\.el7\.x86_64\.rpm
-
-- name: libquicklz-devel-centos7
-  type: gcs
-  source:
-    bucket: ((gcs-bucket))
-    json_key: ((concourse-gcs-resources-service-account-key))
-    regexp: gp-internal-artifacts/centos7/libquicklz-devel-(\d.*)\.el7\.x86_64\.rpm
-
-- name: libsigar-centos7
-  type: gcs
-  source:
-    bucket: ((gcs-bucket))
-    json_key: ((concourse-gcs-resources-service-account-key))
-    regexp: gp-internal-artifacts/centos7/sigar-rhel7_x86_64-(.*)\.targz
-
 - name: pxf_tarball
   type: s3
   source:
@@ -121,12 +99,6 @@ jobs:
       params: {submodules: all, submodules_recursive: true}
       trigger: true
     - get: gpdb6-centos7-build
-    - get: libquicklz-installer
-      resource: libquicklz-centos7
-    - get: libquicklz-devel-installer
-      resource: libquicklz-devel-centos7
-    - get: libsigar-installer
-      resource: libsigar-centos7
   - task: compile_gpdb_centos7
     file: gpdb_src/concourse/tasks/compile_gpdb.yml
     image: gpdb6-centos7-build
