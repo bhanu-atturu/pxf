@@ -1,0 +1,4 @@
+gpdb-git-branch: 6X_STABLE
+gpdb-branch: 6X_STABLE
+pgport: 7000
+folder-prefix: pg_regress

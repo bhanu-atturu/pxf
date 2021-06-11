@@ -248,14 +248,11 @@ pg_regress:
 		--check-creds \
 		--pipeline=pg_regress \
 		--config $(HOME)/workspace/pxf/concourse/pipelines/pg_regress_pipeline.yml \
+		--load-vars-from=$(HOME)/workspace/pxf/concourse/settings/pg_regress.yml \
 		--load-vars-from=$(SECRETS_HOME)/gpdb_common-ci-secrets.yml \
 		--load-vars-from=$(SECRETS_HOME)/pxf-secrets.yml \
 		--load-vars-from=$(SECRETS_HOME)/pxf-common.yml \
 		--load-vars-from=$(SECRETS_HOME)/pxf-dev.yml \
-		--var gpdb-git-branch=6X_STABLE \
-		--var gpdb-branch=6X_STABLE \
-		--var pgport=7000 \
-		--var folder-prefix=pg_regress \
 		${FLY_OPTION_NON-INTERACTIVE} || echo "Generated yaml has errors: check $${PIPELINE_FILE}"
 
 	@echo using the following command to unpause the pipeline:
