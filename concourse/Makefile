@@ -10,6 +10,7 @@ DEV_BUILD_PIPELINE_NAME     ?= dev:$(USER)-$(BRANCH)
 PR_BUILD_PIPELINE_NAME      ?= pxf_pr_pipeline
 CERTIFICATION_PIPELINE_NAME ?= pxf-certification
 PERF_PIPELINE_NAME          ?= pxf_perf-$(SCALE)g-RHEL$(REDHAT_MAJOR_VERSION)
+PG_REGRESS_PIPELINE_NAME    ?= pg_regress
 PIVNET_PIPELINE_NAME        ?= pivnet_artifacts
 NUM_GPDB5_VERSIONS          ?= 10
 NUM_GPDB6_VERSIONS          ?=  9
@@ -246,17 +247,17 @@ pg_regress:
 	$(FLY_CMD) --target=$(CONCOURSE) \
 		set-pipeline \
 		--check-creds \
-		--pipeline=pg_regress \
+		--pipeline $(PG_REGRESS_PIPELINE_NAME)\
 		--config $(HOME)/workspace/pxf/concourse/pipelines/pg_regress_pipeline.yml \
 		--load-vars-from=$(HOME)/workspace/pxf/concourse/settings/pg_regress.yml \
 		--load-vars-from=$(SECRETS_HOME)/gpdb_common-ci-secrets.yml \
 		--load-vars-from=$(SECRETS_HOME)/pxf-secrets.yml \
 		--load-vars-from=$(SECRETS_HOME)/pxf-common.yml \
 		--load-vars-from=$(SECRETS_HOME)/pxf-dev.yml \
-		${FLY_OPTION_NON-INTERACTIVE} || echo "Generated yaml has errors: check $${PIPELINE_FILE}"
+		${FLY_OPTION_NON-INTERACTIVE}
 
 	@echo using the following command to unpause the pipeline:
-	@echo -e "\t$(FLY_CMD) -t ${CONCOURSE} unpause-pipeline --pipeline ${BUILD_PIPELINE_NAME}"
+	@echo -e "\t$(FLY_CMD) -t ${CONCOURSE} unpause-pipeline --pipeline ${PG_REGRESS_PIPELINE_NAME}"
 
 # ============================= PERFORMANCE PIPELINE TARGETS =============================
 
