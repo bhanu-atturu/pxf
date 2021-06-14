@@ -43,7 +43,7 @@ resources:
     username: _json_key
     password: ((pxf-cloudbuild-service-account-key))
 
-- name: gpdb6-centos7-build
+- name: gpdb7-centos7-build
   type: registry-image
   source:
     repository: gcr.io/data-gpdb-public-images/gpdb7-centos7-build
@@ -98,10 +98,10 @@ jobs:
     - get: gpdb_src
       params: {submodules: all, submodules_recursive: true}
       trigger: true
-    - get: gpdb6-centos7-build
+    - get: gpdb7-centos7-build
   - task: compile_gpdb_centos7
     file: gpdb_src/concourse/tasks/compile_gpdb.yml
-    image: gpdb6-centos7-build
+    image: gpdb7-centos7-build
     params:
       BLD_TARGETS: "clients loaders"
       CONFIGURE_FLAGS: '--enable-cassert --enable-debug-extensions'
