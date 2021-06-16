@@ -35,10 +35,10 @@ resources:
     uri: {{pxf-git-remote}}
     private_key: ((ccp-git-key))
 
-- name: gpdb-pxf-dev-centos7
+- name: gpdb7-pxf-dev-centos7
   type: registry-image
   source:
-    repository: gcr.io/data-gpdb-ud/gpdb-pxf-dev/gpdb6-centos7-test-pxf
+    repository: gcr.io/data-gpdb-ud/gpdb-pxf-dev/gpdb7-centos7-test-pxf
     tag: latest
     username: _json_key
     password: ((pxf-cloudbuild-service-account-key))
@@ -49,10 +49,10 @@ resources:
     repository: gcr.io/data-gpdb-public-images/gpdb7-centos7-build
     tag: latest
 
-- name: gpdb-pxf-dev-centos7-hdp2-server
+- name: gpdb7-pxf-dev-centos7-hdp2-server
   type: registry-image
   source:
-    repository: gcr.io/data-gpdb-ud/gpdb-pxf-dev/gpdb6-centos7-test-pxf-hdp2
+    repository: gcr.io/data-gpdb-ud/gpdb-pxf-dev/gpdb7-centos7-test-pxf-hdp2
     tag: latest
     username: _json_key
     password: ((pxf-cloudbuild-service-account-key))
@@ -85,9 +85,9 @@ jobs:
     - get: gpdb_src
     - get: gpdb_pxf_trigger
       trigger: true
-    - get: gpdb-pxf-dev-centos7
+    - get: gpdb7-pxf-dev-centos7
   - task: compile_pxf
-    image: gpdb-pxf-dev-centos7
+    image: gpdb7-pxf-dev-centos7
     file: pxf_src/concourse/tasks/compile_pxf.yml
   - put: pxf_tarball
     params: {file: pxf_artifacts/pxf.tar.gz}
@@ -131,9 +131,9 @@ jobs:
       - compile_pxf
       - compile_gpdb
       trigger: true
-    - get: gpdb-pxf-dev-centos7-hdp2-server
+    - get: gpdb7-pxf-dev-centos7-hdp2-server
   - task: test_pxf
-    image: gpdb-pxf-dev-centos7-hdp2-server
+    image: gpdb7-pxf-dev-centos7-hdp2-server
     config:
       platform: linux
       inputs:
@@ -170,10 +170,10 @@ jobs:
       - compile_pxf
       - compile_gpdb
       trigger: true
-    - get: gpdb-pxf-dev-centos7-hdp2-server
+    - get: gpdb7-pxf-dev-centos7-hdp2-server
   - task: test_pxf
     attempts: 2
-    image: gpdb-pxf-dev-centos7-hdp2-server
+    image: gpdb7-pxf-dev-centos7-hdp2-server
     config:
       platform: linux
       inputs:
@@ -213,10 +213,10 @@ jobs:
       - compile_pxf
       - compile_gpdb
       trigger: true
-    - get: gpdb-pxf-dev-centos7-hdp2-server
+    - get: gpdb7-pxf-dev-centos7-hdp2-server
   - task: test_pxf
     attempts: 2
-    image: gpdb-pxf-dev-centos7-hdp2-server
+    image: gpdb7-pxf-dev-centos7-hdp2-server
     config:
       platform: linux
       inputs:
@@ -256,10 +256,10 @@ jobs:
       - compile_pxf
       - compile_gpdb
       trigger: true
-    - get: gpdb-pxf-dev-centos7-hdp2-server
+    - get: gpdb7-pxf-dev-centos7-hdp2-server
   - task: test_pxf
     attempts: 2
-    image: gpdb-pxf-dev-centos7-hdp2-server
+    image: gpdb7-pxf-dev-centos7-hdp2-server
     config:
       platform: linux
       inputs:
@@ -300,10 +300,10 @@ jobs:
       - compile_pxf
       - compile_gpdb
       trigger: true
-    - get: gpdb-pxf-dev-centos7-hdp2-server
+    - get: gpdb7-pxf-dev-centos7-hdp2-server
   - task: test_pxf
     attempts: 2
-    image: gpdb-pxf-dev-centos7-hdp2-server
+    image: gpdb7-pxf-dev-centos7-hdp2-server
     config:
       platform: linux
       inputs:
@@ -345,10 +345,10 @@ jobs:
       - compile_pxf
       - compile_gpdb
       trigger: true
-    - get: gpdb-pxf-dev-centos7-hdp2-server
+    - get: gpdb7-pxf-dev-centos7-hdp2-server
   - task: test_pxf
     file: pxf_src/concourse/tasks/test_pxf.yml
-    image: gpdb-pxf-dev-centos7-hdp2-server
+    image: gpdb7-pxf-dev-centos7-hdp2-server
     params:
       GROUP: fdw_hcfs_schedule
       IMPERSONATION: false
