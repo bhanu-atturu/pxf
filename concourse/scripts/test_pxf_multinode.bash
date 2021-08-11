@@ -394,6 +394,7 @@ function run_pxf_automation() {
 
 		cd ${PWD}/pxf_src/automation
 		make -C ${PWD}/pxf_src/automation GROUP=${GROUP}
+		exit 1
 	EOF
 
 	chown gpadmin:gpadmin ~gpadmin/run_pxf_automation_test.sh
