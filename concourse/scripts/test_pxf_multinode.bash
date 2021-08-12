@@ -213,7 +213,7 @@ function setup_pxf_kerberos_on_cluster() {
 		ssh gpadmin@mdw "
 			mkdir -p ${PXF_CONF_DIR}/servers/hdfs-secure &&
 			cp ${PXF_CONF_DIR}/templates/pxf-site.xml ${PXF_CONF_DIR}/servers/hdfs-secure &&
-			sed -i -e \"s|>gpadmin/_HOST@EXAMPLE.COM<|>${HADOOP_2_USER}/_HOST@${REALM2}<|g\" ${PXF_CONF_DIR}/servers/hdfs-secure/pxf-site.xml &&
+			sed -i -e \"s|>gpadmin/_HOST@EXAMPLE.COM<|>${HADOOP_2_USER}@${REALM2}<|g\" ${PXF_CONF_DIR}/servers/hdfs-secure/pxf-site.xml &&
 			sed -i -e 's|/pxf.service.keytab<|/pxf.service.2.keytab<|g' ${PXF_CONF_DIR}/servers/hdfs-secure/pxf-site.xml
 		"
 		scp dataproc_2_env_files/conf/*-site.xml "gpadmin@mdw:${PXF_CONF_DIR}/servers/hdfs-secure"
@@ -234,7 +234,7 @@ function setup_pxf_kerberos_on_cluster() {
 				${PXF_CONF_DIR}/servers/db-hive-kerberos/jdbc-site.xml &&
 			cp ~gpadmin/hive-report.sql ${PXF_CONF_DIR}/servers/db-hive-kerberos &&
 			cp ${PXF_CONF_DIR}/templates/pxf-site.xml ${PXF_CONF_DIR}/servers/db-hive-kerberos/pxf-site.xml &&
-			sed -i 's|gpadmin/_HOST@EXAMPLE.COM|${HADOOP_2_USER}/_HOST@${REALM2}|g' ${PXF_CONF_DIR}/servers/db-hive-kerberos/pxf-site.xml &&
+			sed -i 's|gpadmin/_HOST@EXAMPLE.COM|${HADOOP_2_USER}@${REALM2}|g' ${PXF_CONF_DIR}/servers/db-hive-kerberos/pxf-site.xml &&
 			sed -i -e 's|/pxf.service.keytab<|/pxf.service.2.keytab<|g' ${PXF_CONF_DIR}/servers/db-hive-kerberos/pxf-site.xml &&
 			sed -i -e 's|\${pxf.service.user.impersonation.enabled}|false|g' ${PXF_CONF_DIR}/servers/db-hive-kerberos/pxf-site.xml &&
 			sed -i 's|</configuration>|<property><name>hadoop.security.authentication</name><value>kerberos</value></property></configuration>|g' \
@@ -245,17 +245,12 @@ function setup_pxf_kerberos_on_cluster() {
 		# Add foreign dataproc hostfile to /etc/hosts
 		sudo tee --append /etc/hosts < dataproc_2_env_files/etc_hostfile
 
+        # create all the keytabs
 		ssh "${HADOOP_2_SSH_OPTS[@]}" -t "${HADOOP_2_USER}@${HADOOP_2_HOSTNAME}" \
 			"set -euo pipefail
-			sudo kadmin.local -q 'addprinc -pw pxf ${HADOOP_2_USER}/${GPDB_CLUSTER_NAME_BASE}-0.c.${GOOGLE_PROJECT_ID}.internal'
-			sudo kadmin.local -q 'addprinc -pw pxf ${HADOOP_2_USER}/${GPDB_CLUSTER_NAME_BASE}-1.c.${GOOGLE_PROJECT_ID}.internal'
-			sudo kadmin.local -q 'addprinc -pw pxf ${HADOOP_2_USER}/${GPDB_CLUSTER_NAME_BASE}-2.c.${GOOGLE_PROJECT_ID}.internal'
-			sudo kadmin.local -q \"xst -k \${HOME}/pxf.service-mdw.keytab ${HADOOP_2_USER}/${GPDB_CLUSTER_NAME_BASE}-0.c.${GOOGLE_PROJECT_ID}.internal\"
-			sudo kadmin.local -q \"xst -k \${HOME}/pxf.service-sdw1.keytab ${HADOOP_2_USER}/${GPDB_CLUSTER_NAME_BASE}-1.c.${GOOGLE_PROJECT_ID}.internal\"
-			sudo kadmin.local -q \"xst -k \${HOME}/pxf.service-sdw2.keytab ${HADOOP_2_USER}/${GPDB_CLUSTER_NAME_BASE}-2.c.${GOOGLE_PROJECT_ID}.internal\"
-			sudo chown ${HADOOP_2_USER} \"\${HOME}/pxf.service-mdw.keytab\"
-			sudo chown ${HADOOP_2_USER} \"\${HOME}/pxf.service-sdw1.keytab\"
-			sudo chown ${HADOOP_2_USER} \"\${HOME}/pxf.service-sdw2.keytab\"
+			sudo kadmin.local -q 'addprinc -pw pxf ${HADOOP_2_USER}.c.${GOOGLE_PROJECT_ID}.internal'
+			sudo kadmin.local -q \"xst -k \${HOME}/pxf.service-test.keytab ${HADOOP_2_USER}.c.${GOOGLE_PROJECT_ID}.internal\"
+			sudo chown ${HADOOP_2_USER} \"\${HOME}/pxf.service-test.keytab\"
 			"
 		scp "${HADOOP_2_SSH_OPTS[@]}" "${HADOOP_2_USER}@${HADOOP_2_HOSTNAME}":~/pxf.service-*.keytab \
 			/tmp/
@@ -267,9 +262,9 @@ function setup_pxf_kerberos_on_cluster() {
 			source ${GPHOME}/greenplum_path.sh &&
 			gpscp -f ~gpadmin/hostfile_all -v -r -u centos ~/dataproc_2_env_files/etc_hostfile =:/tmp/etc_hostfile &&
 			gpssh -f ~gpadmin/hostfile_all -v -u centos -s -e 'sudo tee --append /etc/hosts < /tmp/etc_hostfile' &&
-			gpscp -h mdw -v -r -u gpadmin ~/dataproc_2_env_files/pxf.service-mdw.keytab =:/home/gpadmin/pxf/keytabs/pxf.service.2.keytab &&
-			gpscp -h sdw1 -v -r -u gpadmin ~/dataproc_2_env_files/pxf.service-sdw1.keytab =:/home/gpadmin/pxf/keytabs/pxf.service.2.keytab &&
-			gpscp -h sdw2 -v -r -u gpadmin ~/dataproc_2_env_files/pxf.service-sdw2.keytab =:/home/gpadmin/pxf/keytabs/pxf.service.2.keytab
+			gpscp -h mdw -v -r -u gpadmin ~/dataproc_2_env_files/pxf.service-test.keytab =:/home/gpadmin/pxf/keytabs/pxf.service.2.keytab &&
+			gpscp -h sdw1 -v -r -u gpadmin ~/dataproc_2_env_files/pxf.service-test.keytab =:/home/gpadmin/pxf/keytabs/pxf.service.2.keytab &&
+			gpscp -h sdw2 -v -r -u gpadmin ~/dataproc_2_env_files/pxf.service-test.keytab =:/home/gpadmin/pxf/keytabs/pxf.service.2.keytab
 		"
 		sudo cp "${DATAPROC_2_DIR}/pxf.service.keytab" /etc/security/keytabs/gpuser.headless.keytab
 		sudo chown gpadmin:gpadmin /etc/security/keytabs/gpuser.headless.keytab
@@ -392,9 +387,9 @@ function run_pxf_automation() {
 		export BASE_PATH='${BASE_PATH}'
 		export PROTOCOL=${PROTOCOL}
 
-		exit 1
 		cd ${PWD}/pxf_src/automation
 		make -C ${PWD}/pxf_src/automation GROUP=${GROUP}
+		exit 1
 	EOF
 
 	chown gpadmin:gpadmin ~gpadmin/run_pxf_automation_test.sh
