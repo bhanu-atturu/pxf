@@ -248,8 +248,8 @@ function setup_pxf_kerberos_on_cluster() {
         # create all the keytabs
 		ssh "${HADOOP_2_SSH_OPTS[@]}" -t "${HADOOP_2_USER}@${HADOOP_2_HOSTNAME}" \
 			"set -euo pipefail
-			sudo kadmin.local -q 'addprinc -pw pxf ${HADOOP_2_USER}.c.${GOOGLE_PROJECT_ID}.internal'
-			sudo kadmin.local -q \"xst -k \${HOME}/pxf.service-test.keytab ${HADOOP_2_USER}.c.${GOOGLE_PROJECT_ID}.internal\"
+			sudo kadmin.local -q 'addprinc -pw pxf ${HADOOP_2_USER}'
+			sudo kadmin.local -q \"xst -k \${HOME}/pxf.service-test.keytab ${HADOOP_2_USER}\"
 			sudo chown ${HADOOP_2_USER} \"\${HOME}/pxf.service-test.keytab\"
 			"
 		scp "${HADOOP_2_SSH_OPTS[@]}" "${HADOOP_2_USER}@${HADOOP_2_HOSTNAME}":~/pxf.service-*.keytab \
