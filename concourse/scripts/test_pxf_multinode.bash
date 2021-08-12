@@ -392,9 +392,9 @@ function run_pxf_automation() {
 		export BASE_PATH='${BASE_PATH}'
 		export PROTOCOL=${PROTOCOL}
 
+		exit 1
 		cd ${PWD}/pxf_src/automation
 		make -C ${PWD}/pxf_src/automation GROUP=${GROUP}
-		exit 1
 	EOF
 
 	chown gpadmin:gpadmin ~gpadmin/run_pxf_automation_test.sh
