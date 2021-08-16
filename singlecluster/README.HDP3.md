@@ -9,76 +9,85 @@ It contains the following versions:
 
 This version of Single cluster requires users to make some manual changes to the configuration files once the
 
+Requirements
+------------
+
+Singlecluster-HDP3 requires Java 8 since Hive 3.1 does not support Java 11 yet; see [HIVE-22415](https://issues.apache.org/jira/browse/HIVE-22415) for more details.
+
 Initialization
 --------------
 
-1. Untar the singlecluster tarball
+1. Make sure **all** running instances of other singlecluster processes are stopped.
+
+2. Untar the singlecluster tarball
 
     ```sh
-    mv singlecluster.tar.gz ~/.
-    cd ~/.
-    tar -xzvf singlecluster-HDP3.tar.gz
+    mv singlecluster.tar.gz ~/workspace
+    cd ~/workspace
+    mkdir singlecluster-HDP3
+    tar -xf singlecluster-HDP3.tar.gz --strip-components=1 --directory=singlecluster-HDP3
     cd singlecluster-HDP3
-    export GPHD_ROOT=${PWD}
+    export GPHD_ROOT="${PWD}"
     ```
 
-2. In `${GPHD_ROOT}/hive/conf/hive-env.sh`, remove `-hiveconf hive.log.dir=$LOGS_ROOT` from the `HIVE_OPTS` and `HIVE_SERVER_OPTS` exports:
+3. Adjust the configuration for Hadoop 3 (see `adjust_for_hadoop3` in `pxf_common.bash`)
+    1. In `${GPHD_ROOT}/hive/conf/hive-env.sh`, remove `-hiveconf hive.log.dir=$LOGS_ROOT` from the `HIVE_OPTS` and `HIVE_SERVER_OPTS` exports:
 
-    ```sh
-    export HIVE_OPTS="-hiveconf derby.stream.error.file=$LOGS_ROOT/derby.log -hiveconf javax.jdo.option.ConnectionURL=jdbc:derby:;databaseName=$HIVE_STORAGE_ROOT/metastore_db;create=true"
-    export HIVE_SERVER_OPTS="-hiveconf derby.stream.error.file=$LOGS_ROOT/derby.log -hiveconf ;databaseName=$HIVE_STORAGE_ROOT/metastore_db;create=true"
-    ```
+        ```sh
+        export HIVE_OPTS="-hiveconf derby.stream.error.file=$LOGS_ROOT/derby.log -hiveconf javax.jdo.option.ConnectionURL=jdbc:derby:;databaseName=$HIVE_STORAGE_ROOT/metastore_db;create=true"
+        export HIVE_SERVER_OPTS="-hiveconf derby.stream.error.file=$LOGS_ROOT/derby.log -hiveconf ;databaseName=$HIVE_STORAGE_ROOT/metastore_db;create=true"
+        ```
 
-3. Update the `hive.execution.engine` property to `tez` in `${GPHD_ROOT}/hive/conf/hive-site.xml`:
+    2. Update the `hive.execution.engine` property to `tez` in `${GPHD_ROOT}/hive/conf/hive-site.xml`:
 
-    ```xml
-    <property>
-        <name>hive.execution.engine</name>
-        <value>tez</value>
-        <description>Chooses execution engine. Options are: mr(default), tez, or spark</description>
-    </property>
-    ```
-
-4. Add the following properties to `${GPHD_ROOT}/hive/conf/hive-site.xml`:
-
-    ```xml
+        ```xml
         <property>
-            <name>hive.tez.container.size</name>
-            <value>2048</value>
+            <name>hive.execution.engine</name>
+            <value>tez</value>
+            <description>Chooses execution engine. Options are: mr(default), tez, or spark</description>
         </property>
-        <property>
-            <name>datanucleus.schema.autoCreateAll</name>
-            <value>True</value>
-        </property>
-        <property>
-            <name>metastore.metastore.event.db.notification.api.auth</name>
-            <value>false</value>
-        </property>
-    ```
+        ```
 
-5. Add the following property to `"${GPHD_ROOT}/tez/conf/tez-site.xml`:
+    3. Add the following properties to `${GPHD_ROOT}/hive/conf/hive-site.xml`:
 
-    ```xml
-        <property>
-            <name>tez.use.cluster.hadoop-libs</name>
-            <value>true</value>
-        </property>
-    ```
+        ```xml
+            <property>
+                <name>hive.tez.container.size</name>
+                <value>2048</value>
+            </property>
+            <property>
+                <name>datanucleus.schema.autoCreateAll</name>
+                <value>True</value>
+            </property>
+            <property>
+                <name>metastore.metastore.event.db.notification.api.auth</name>
+                <value>false</value>
+            </property>
+        ```
 
-6. Update the properties in the `${GPHD_ROOT}/hadoop/etc/hadoop/yarn-site.xml` by replacing `HADOOP_CONF` with `HADOOP_CONF_DIR` and `HADOOP_ROOT` with `HADOOP_HOME`:
+    4. Add the following property to `"${GPHD_ROOT}/tez/conf/tez-site.xml`:
 
-    ```sh
-    sed -i -e 's|HADOOP_CONF|HADOOP_CONF_DIR|g' \
-        -e 's|HADOOP_ROOT|HADOOP_HOME|g' "${GPHD_ROOT}/hadoop/etc/hadoop/yarn-site.xml"
-    ```
+        ```xml
+            <property>
+                <name>tez.use.cluster.hadoop-libs</name>
+                <value>true</value>
+            </property>
+        ```
 
-7. Initialize an instance
+    5. Update the properties in the `${GPHD_ROOT}/hadoop/etc/hadoop/yarn-site.xml` by replacing `HADOOP_CONF` with `HADOOP_CONF_DIR` and `HADOOP_ROOT` with `HADOOP_HOME`:
+
+        ```sh
+        sed -i -e 's|HADOOP_CONF|HADOOP_CONF_DIR|g' \
+            -e 's|HADOOP_ROOT|HADOOP_HOME|g' "${GPHD_ROOT}/hadoop/etc/hadoop/yarn-site.xml"
+        ```
+
+4. Initialize an instance
 
     ```sh
     ${GPHD_ROOT}/bin/init-gphd.sh
     ```
 
-8. Add the following to your environment
+5. Add the following to your environment
 
     ```sh
     export HADOOP_ROOT=$GPHD_ROOT/hadoop
