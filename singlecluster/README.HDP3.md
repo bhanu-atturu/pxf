@@ -1,5 +1,5 @@
 SingleCluster-HDP3
-=============
+==================
 
 Single cluster is a self contained, easy to deploy distribution of HDP3
 It contains the following versions:
