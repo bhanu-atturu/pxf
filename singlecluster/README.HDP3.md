@@ -1,11 +1,14 @@
 SingleCluster-HDP3
 ==================
 
-Single cluster is a self contained, easy to deploy distribution of HDP3
+Single cluster is a self contained, easy to deploy distribution of HDP3 (3.1.4.0-315)
 It contains the following versions:
 
-- Hadoop 3
-- Hive 3.1
+- Hadoop 3.1.1
+- Hive 3.1.0
+- Zookeeper 3.4.6
+- HBase 2.0.2
+- Tez 0.9.1
 
 This version of Single cluster requires users to make some manual changes to the configuration files once the
 
@@ -77,8 +80,20 @@ Initialization
     5. Update the properties in the `${GPHD_ROOT}/hadoop/etc/hadoop/yarn-site.xml` by replacing `HADOOP_CONF` with `HADOOP_CONF_DIR` and `HADOOP_ROOT` with `HADOOP_HOME`:
 
         ```sh
-        sed -i -e 's|HADOOP_CONF|HADOOP_CONF_DIR|g' \
+        sed -i.bak -e 's|HADOOP_CONF|HADOOP_CONF_DIR|g' \
             -e 's|HADOOP_ROOT|HADOOP_HOME|g' "${GPHD_ROOT}/hadoop/etc/hadoop/yarn-site.xml"
+        ```
+
+    6. Replace `HADOOP_NAMENODE_OPTS` with `HDFS_NAMENODE_OPTS` in `${GPHD_ROOT}/hadoop/etc/hadoop/hadoop-env.sh`
+
+        ```sh
+        sed -i.bak -e 's/HADOOP_NAMENODE_OPTS/HDFS_NAMENODE_OPTS/g' "${GPHD_ROOT}/hadoop/etc/hadoop/hadoop-env.sh"
+        ```
+
+    7. Replace `HADOOP_DATANODE_OPTS` with `HDFS_DATANODE_OPTS` in `${GPHD_ROOT}/bin/hadoop-datanode.sh`
+
+        ```sh
+        sed -i.bak -e 's/HADOOP_DATANODE_OPTS/HDFS_DATANODE_OPTS/g' "${GPHD_ROOT}/bin/hadoop-datanode.sh"
         ```
 
 4. Initialize an instance
