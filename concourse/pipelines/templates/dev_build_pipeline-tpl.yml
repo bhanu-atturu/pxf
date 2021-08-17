@@ -1140,7 +1140,7 @@ jobs:
             extra_nodes: 1
             segments_per_host: 4
             instance_type: n1-standard-4
-            ccp_reap_minutes: 120
+            ccp_reap_minutes: 1200
       - task: Generate Greenplum Cluster
         input_mapping:
           gpdb_rpm: gpdb_package
@@ -1176,7 +1176,7 @@ jobs:
         GOOGLE_ZONE: ((google-zone))
         IMAGE_VERSION: ((dataproc-image-version))
         KERBEROS: ((kerberos-enabled))
-        ccp_reap_minutes: 120
+        ccp_reap_minutes: 1200
     - task: Generate Hadoop Cluster 2
       file: pxf_src/concourse/tasks/install_dataproc.yml
       image: ccp-7-image
@@ -1193,7 +1193,7 @@ jobs:
         KERBEROS: ((kerberos-enabled))
         KEY: dataproc-kerberos-key
         KEYRING: dataproc-kerberos
-        ccp_reap_minutes: 120
+        ccp_reap_minutes: 1200
         NO_ADDRESS: false
         PROXY_USER: gpuser
         SECRETS_BUCKET: data-gpdb-ud-kerberos-pxf-secrets
