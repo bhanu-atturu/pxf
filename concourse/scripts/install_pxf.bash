@@ -127,10 +127,14 @@ function create_pxf_installer_scripts() {
 		PXF_CONF=${PXF_CONF_DIR}
 		export HADOOP_VER=2.6.5.0-292
 
+		echo '$GOOGLE_CREDENTIALS' > key.json
+		gcloud auth activate-service-account --key-file=key.json
+
 		function install_java() {
-		  yum install -y -q -e 0 java-1.8.0-openjdk
-		  echo 'export JAVA_HOME=/usr/lib/jvm/jre' | sudo tee -a ~gpadmin/.bashrc
-		  echo 'export JAVA_HOME=/usr/lib/jvm/jre' | sudo tee -a ~centos/.bashrc
+		  gsutil -m cp gs://data-gpdb-ud-jdk-archive/jdk-8u161-linux-x64.rpm .
+		  rpm --install jdk-8u161-linux-x64.rpm
+		  echo 'export JAVA_HOME=/usr/java/jdk1.8.0_161' | sudo tee -a ~gpadmin/.bashrc
+		  echo 'export JAVA_HOME=/usr/java/jdk1.8.0_161' | sudo tee -a ~centos/.bashrc
 		}
 
 		function install_hadoop_client() {
@@ -166,7 +170,7 @@ function create_pxf_installer_scripts() {
 function run_pxf_installer_scripts() {
 	ssh "${MASTER_HOSTNAME}" "
 		source ${GPHOME}/greenplum_path.sh &&
-		export JAVA_HOME=/usr/lib/jvm/jre &&
+		export JAVA_HOME=/usr/java/jdk1.8.0_161 &&
 		export MASTER_DATA_DIRECTORY=/data/gpdata/master/gpseg-1/ &&
 		export PXF_COMPONENT=${PXF_COMPONENT} &&
 		if [[ $INSTALL_GPHDFS == true ]]; then

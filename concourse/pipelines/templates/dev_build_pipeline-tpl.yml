@@ -1203,6 +1203,7 @@ jobs:
     file: pxf_src/concourse/tasks/install_pxf_on_ccp.yml
     image: ccp-7-image
     params:
+      GOOGLE_CREDENTIALS: ((pxf-storage-service-account-key))
       IMPERSONATION: false
       INSTALL_GPHDFS: false
       GP_VER: [[gp_ver]]
