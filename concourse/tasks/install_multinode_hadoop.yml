@@ -1,0 +1,16 @@
+---
+platform: linux
+
+image_resource:
+  type: registry-image
+
+inputs:
+- name: terraform_hadoop
+
+run:
+  path: /bin/bash
+  args:
+  - -c
+  - |
+    echo "name: $(cat terraform_hadoop/name)"
+    echo "metadata: $(cat terraform_hadoop/metadata)"
