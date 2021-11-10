@@ -1,0 +1,12 @@
+[Unit]
+Description=pxf
+After=syslog.target
+
+[Service]
+Environment=PXF_BASE=/home/bboyle/pxf-base
+ExecStart=${PXF_HOME}/application/pxf-app-_PXF_VERSION_.jar
+SuccessExitStatus=143
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
