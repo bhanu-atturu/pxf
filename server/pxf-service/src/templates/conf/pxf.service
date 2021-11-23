@@ -3,11 +3,13 @@ Description=pxf
 After=syslog.target
 
 [Service]
-Environment=PXF_BASE=/home/bboyle/pxf-base JAVA_HOME=/home/bboyle/workspace/jdk1.8.0_291
-ExecStart=/usr/local/pxf-dev/bin/pxf start
-ExecStop=/usr/local/pxf-dev/bin/pxf stop
+User=gpadmin
+Group=gpadmin
+Environment=LAUNCHED_BY_SYSTEMD=true
+ExecStart=/usr/local/pxf-gp6/bin/pxf start
+ExecStop=/usr/local/pxf-gp6/bin/pxf stop
 Type=forking
-PIDFile=/home/bboyle/pxf-base/run/pxf-app.pid
+PIDFile=/usr/local/pxf-gp6/run/pxf-app.pid
 SuccessExitStatus=143
 Restart=always
 

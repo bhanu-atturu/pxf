@@ -60,6 +60,8 @@ sed -i "s|module_pathname =.*|module_pathname = '%{prefix}/fdw/pxf_fdw'|g" %{pre
 %config(noreplace) %{prefix}/conf/pxf-env.sh
 %config(noreplace) %{prefix}/conf/pxf-log4j2.xml
 %config(noreplace) %{prefix}/conf/pxf-profiles.xml
+%config(noreplace) %{prefix}/conf/pxf.service
+%config(noreplace) %{prefix}/conf/pxf.service.d/local.conf
 
 %pre
 # cleanup files and directories created by 'pxf init' command
