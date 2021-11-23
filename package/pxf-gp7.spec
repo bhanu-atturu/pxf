@@ -37,6 +37,7 @@ fi
 %post
 sed -i "s|directory =.*|directory = '%{prefix}/fdw/'|g" %{prefix}/fdw/pxf_fdw.control
 sed -i "s|module_pathname =.*|module_pathname = '%{prefix}/fdw/pxf_fdw'|g" %{prefix}/fdw/pxf_fdw.control
+sed -i "s|ExecStart=.*|ExecStart=%{prefix}/bin/pxf start|g; s|ExecStop=.*|ExecStop=%{prefix}/bin/pxf stop|g; s|PIDFile=.*|PIDFile=%{prefix}/run/pxf-app.pid|g' %{prefix}/conf/pxf.service
 
 %files
 %{prefix}
