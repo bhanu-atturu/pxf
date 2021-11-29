@@ -183,7 +183,7 @@ function copyConfigurationFilesToPxfBase()
     cp -Lv "${PXF_HOME}/conf/pxf-env.sh"                 "${PXF_BASE}/conf"
     cp -Lv "${PXF_HOME}/conf/pxf-log4j2.xml"             "${PXF_BASE}/conf"
     cp -Lv "${PXF_HOME}/conf/pxf-profiles.xml"           "${PXF_BASE}/conf"
-    sed -e "s/@PXF_BASE@/%{PXF_BASE}/g" "${PXF_HOME}/conf/pxf.service.d/local.conf" "${PXF_BASE}/conf/pxf.service.d/local.conf"
+    sed -e "s/@PXF_BASE@/%{PXF_BASE}/g" "${PXF_HOME}/conf/pxf.service.d/local.conf" > "${PXF_BASE}/conf/pxf.service.d/local.conf"
 }
 
 function validate_system()
