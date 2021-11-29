@@ -73,9 +73,6 @@ bootJar {
         attributes("Implementation-Version": project.version)
         attributes('Main-Class': 'org.springframework.boot.loader.PropertiesLauncher')
     }
-
-    /* https://docs.spring.io/spring-boot/docs/current/reference/html/deployment.html#deployment.installing */
-    launchScript()
 }
 
 springBoot {
