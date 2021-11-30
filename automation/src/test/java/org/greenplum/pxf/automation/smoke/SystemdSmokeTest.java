@@ -4,7 +4,7 @@ import org.greenplum.pxf.automation.structures.tables.basic.Table;
 import org.greenplum.pxf.automation.structures.tables.utils.TableFactory;
 import org.testng.annotations.Test;
 
-public class SystemdSmoke extends BaseSmoke {
+public class SystemdSmokeTest extends BaseSmoke {
     @Override
     protected void prepareData() throws Exception {
         Table dataTable = getSmallData();
@@ -30,7 +30,7 @@ public class SystemdSmoke extends BaseSmoke {
         runTincTest("pxf.smoke.small_data.runTest");
     }
 
-    @Test(groups = {"multiClusterSecurity", "systemd"})
+    @Test(groups = {"systemd"})
     public void testRestart() throws Exception {
         prepareData();
         createTables();
