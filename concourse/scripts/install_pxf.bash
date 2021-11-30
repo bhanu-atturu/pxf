@@ -130,6 +130,12 @@ function create_pxf_installer_scripts() {
 
 		      sed -i -e "s|gpadmin/_HOST@EXAMPLE.COM|gpadmin@${REALM}|g" ${BASE_DIR}/servers/default/pxf-site.xml
 		      gpscp -f ~gpadmin/hostfile_all -v -r -u gpadmin ~/dataproc_env_files/pxf.service.keytab =:${BASE_DIR}/keytabs/
+
+			  # configure systemd
+			  gpssh -f ~gpadmin/hostfile_all -v -u centos -s -e 'sudo install -m 0644 ${BASE_DIR}/conf/user@.service /etc/systemd/system/user@.service'
+			  gpssh -f ~gpadmin/hostfile_all -v -u centos -s -e 'sudo systemctl daemon-reload && sudo systemctl enable user@gpadmin.service && sudo systemctl start user@gpadmin.service'
+			  gpssh -f ~gpadmin/hostfile_all -v -u gpadmin -s -e 'echo "[ -z "\${XDG_RUNTIME_DIR}" ] && export XDG_RUNTIME_DIR=/run/user/\$(id -ru)" >> ~/.bashrc'
+			  gpssh -f ~gpadmin/hostfile_all -v -u gpadmin -s -e 'systemctl --user enable ${BASE_DIR}/conf/pxf.service'
 		    fi
 		    gpscp -f ~gpadmin/hostfile_all -v -r -u centos /tmp/krb5.conf =:/tmp/krb5.conf
 		    gpssh -f ~gpadmin/hostfile_all -v -u centos -s -e 'sudo mv /tmp/krb5.conf /etc/krb5.conf'
@@ -251,7 +257,7 @@ function run_pxf_installer_scripts() {
 		gpssh -f ~gpadmin/hostfile_all -v -u centos -s -e \"sudo sed -i -e 's/edw0/edw0 hadoop/' /etc/hosts\" &&
 		echo \"PXF_BASE=\${PXF_BASE}\" &&
 		${PXF_HOME}/bin/pxf cluster sync &&
-		${PXF_HOME}/bin/pxf cluster start &&
+		gpssh -f ~gpadmin/hostfile_all -v -u gpadmin -s -e 'systemctl --user start pxf.service' &&
 		if [[ $INSTALL_GPHDFS == true ]]; then
 			gpssh -f ~gpadmin/hostfile_all -v -u centos -s -e '
 				sudo cp ${BASE_DIR}/servers/default/{core,hdfs}-site.xml /etc/hadoop/conf

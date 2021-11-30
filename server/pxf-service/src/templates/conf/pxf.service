@@ -3,8 +3,6 @@ Description=pxf
 After=syslog.target
 
 [Service]
-User=gpadmin
-Group=gpadmin
 Environment=LAUNCHED_BY_SYSTEMD=true
 ExecStart=/usr/local/pxf-gp6/bin/pxf start
 ExecStop=/usr/local/pxf-gp6/bin/pxf stop
