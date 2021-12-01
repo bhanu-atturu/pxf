@@ -3,4 +3,4 @@
 /usr/local/pxf-gp6/conf/pxf-log4j2.xml
 /usr/local/pxf-gp6/conf/pxf-profiles.xml
 /usr/local/pxf-gp6/conf/pxf.service
-/usr/local/pxf-gp6/conf/pxf.service.d/local.conf
+/usr/local/pxf-gp6/conf/user@.service

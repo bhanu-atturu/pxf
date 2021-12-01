@@ -62,7 +62,7 @@ sed -i "s|ExecStart=.*|ExecStart=%{prefix}/bin/pxf start|g; s|ExecStop=.*|ExecSt
 %config(noreplace) %{prefix}/conf/pxf-log4j2.xml
 %config(noreplace) %{prefix}/conf/pxf-profiles.xml
 %config(noreplace) %{prefix}/conf/pxf.service
-%config(noreplace) %{prefix}/conf/pxf.service.d/local.conf
+%config(noreplace) %{prefix}/conf/user@.service
 
 %pre
 # cleanup files and directories created by 'pxf init' command
