@@ -135,9 +135,33 @@ pxfprotocol_import(PG_FUNCTION_ARGS)
 	/* first call -- do any desired init */
 	if (context == NULL)
 	{
-		context = create_context(fcinfo, true);
-		EXTPROTOCOL_SET_USER_CTX(fcinfo, context);
-		gpbridge_import_start(context);
+		int attempts = 0;
+		// TODO: how do we set the maximum number of retries?
+		// OPTION 1: compile time constant
+		// OPTION 2: catalog table
+		while (attempts < 2) {
+			attempts++;
+			PG_TRY();
+			{
+				ereport(DEBUG3, (errmsg("gpbridge_import_start - attempts %d of %d", attempts, 2)));
+				context = create_context(fcinfo, true);
+				EXTPROTOCOL_SET_USER_CTX(fcinfo, context);
+				gpbridge_import_start(context);
+
+				if (context->completed)
+					PG_RETURN_INT32(0);
+				int bytes_read = gpbridge_read(context, EXTPROTOCOL_GET_DATABUF(fcinfo), EXTPROTOCOL_GET_DATALEN(fcinfo));
+				PG_RETURN_INT32(bytes_read);
+			}
+			PG_CATCH();
+			{
+				ereport(WARNING, (errmsg("an error was encountered while starting pxf bridge; will retry")));
+				elog_dismiss(WARNING);
+				cleanup_context(context);
+				EXTPROTOCOL_SET_USER_CTX(fcinfo, NULL);
+			}
+			PG_END_TRY();
+		}
 	}
 	/* sometimes an additional call can be executed even when we completed reading data from the stream */
 	if (context->completed)
@@ -146,7 +170,7 @@ pxfprotocol_import(PG_FUNCTION_ARGS)
 	}
 
 	/* Read data */
-	int			bytes_read = gpbridge_read(context, EXTPROTOCOL_GET_DATABUF(fcinfo), EXTPROTOCOL_GET_DATALEN(fcinfo));
+	int bytes_read = gpbridge_read(context, EXTPROTOCOL_GET_DATABUF(fcinfo), EXTPROTOCOL_GET_DATALEN(fcinfo));
 
 	PG_RETURN_INT32(bytes_read);
 }
