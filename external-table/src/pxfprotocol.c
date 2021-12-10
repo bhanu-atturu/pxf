@@ -29,6 +29,8 @@
 PG_MODULE_MAGIC;
 #endif
 
+#define PXF_IMPORT_MAX_ATTEMPTS 2
+
 PG_FUNCTION_INFO_V1(pxfprotocol_export);
 PG_FUNCTION_INFO_V1(pxfprotocol_import);
 PG_FUNCTION_INFO_V1(pxfprotocol_validate_urls);
@@ -135,27 +137,33 @@ pxfprotocol_import(PG_FUNCTION_ARGS)
 	/* first call -- do any desired init */
 	if (context == NULL)
 	{
-		int attempts = 0;
+		ereport(DEBUG3, (errmsg("before gpbridge_import_start, max attempts=%d", PXF_IMPORT_MAX_ATTEMPTS)));
 		// TODO: how do we set the maximum number of retries?
 		// OPTION 1: compile time constant
 		// OPTION 2: catalog table
-		while (attempts < 2) {
-			attempts++;
+		for (int attempt = 1; attempt <= PXF_IMPORT_MAX_ATTEMPTS; attempt++) {
 			PG_TRY();
 			{
-				ereport(DEBUG3, (errmsg("gpbridge_import_start - attempts %d of %d", attempts, 2)));
+				ereport(DEBUG3, (errmsg("gpbridge_import_start - attempt #%d of %d", attempt, PXF_IMPORT_MAX_ATTEMPTS)));
 				context = create_context(fcinfo, true);
 				EXTPROTOCOL_SET_USER_CTX(fcinfo, context);
 				gpbridge_import_start(context);
 
 				if (context->completed)
 					PG_RETURN_INT32(0);
+				// TODO: is this safe to include in the retry?
+				// databuf is on the fcinfo struct and curl may have started writing into it
 				int bytes_read = gpbridge_read(context, EXTPROTOCOL_GET_DATABUF(fcinfo), EXTPROTOCOL_GET_DATALEN(fcinfo));
 				PG_RETURN_INT32(bytes_read);
 			}
 			PG_CATCH();
 			{
-				ereport(WARNING, (errmsg("an error was encountered while starting pxf bridge; will retry")));
+				ereport(DEBUG3, (errmsg("attempt #%d of %d failed because: %s", attempt, PXF_IMPORT_MAX_ATTEMPTS, elog_message())));
+				if (attempt >= PXF_IMPORT_MAX_ATTEMPTS)
+					PG_RE_THROW();
+
+				// TODO: should this be at the warning level or lower?
+				// warning will show up in psql console for example
 				elog_dismiss(WARNING);
 				cleanup_context(context);
 				EXTPROTOCOL_SET_USER_CTX(fcinfo, NULL);
