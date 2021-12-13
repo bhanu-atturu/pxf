@@ -151,7 +151,7 @@ pxfprotocol_import(PG_FUNCTION_ARGS)
 				EXTPROTOCOL_SET_USER_CTX(fcinfo, context);
 				gpbridge_import_start(context);
 
-				if ((context->completed) || gpbridge_get_error(context) != CURLE_PARTIAL_FILE)
+				if (context->completed)
 					PG_RETURN_INT32(0);
 				// TODO: is this safe to include in the retry?
 				// databuf is on the fcinfo struct and curl may have started writing into it
@@ -161,7 +161,7 @@ pxfprotocol_import(PG_FUNCTION_ARGS)
 			PG_CATCH();
 			{
 				ereport(DEBUG3, (errmsg("attempt #%d of %d failed because: %s", attempt, PXF_IMPORT_MAX_ATTEMPTS, elog_message())));
-				if (attempt >= PXF_IMPORT_MAX_ATTEMPTS)
+				if ((attempt >= PXF_IMPORT_MAX_ATTEMPTS) || gpbridge_get_error(context) != CURLE_PARTIAL_FILE)
 					PG_RE_THROW();
 
 				// TODO: should this be at the warning level or lower?
