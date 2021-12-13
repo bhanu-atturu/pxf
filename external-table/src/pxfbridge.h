@@ -70,4 +70,5 @@ int			gpbridge_read(gphadoop_context *context, char *databuf, int datalen);
  */
 int			gpbridge_write(gphadoop_context *context, char *databuf, int datalen);
 
+long		gpbridge_get_error(gphadoop_context *context);
 #endif							/* _PXFBRIDGE_H */

@@ -128,6 +128,11 @@ gpbridge_write(gphadoop_context *context, char *databuf, int datalen)
 	return (int) n;
 }
 
+long
+gpbridge_get_error(gphadoop_context *context) {
+	return churl_get_error(context->churl_handle);
+}
+
 /*
  * Format the URI for reading by adding PXF service endpoint details
  */

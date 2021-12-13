@@ -24,6 +24,8 @@
 #include "access/fileam.h"
 #include "utils/elog.h"
 
+#include <curl/curl.h>
+
 /* define magic module unless run as a part of test cases */
 #ifndef UNIT_TESTING
 PG_MODULE_MAGIC;
@@ -149,7 +151,7 @@ pxfprotocol_import(PG_FUNCTION_ARGS)
 				EXTPROTOCOL_SET_USER_CTX(fcinfo, context);
 				gpbridge_import_start(context);
 
-				if (context->completed)
+				if ((context->completed) || gpbridge_get_error(context) != CURLE_PARTIAL_FILE)
 					PG_RETURN_INT32(0);
 				// TODO: is this safe to include in the retry?
 				// databuf is on the fcinfo struct and curl may have started writing into it

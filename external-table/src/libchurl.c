@@ -62,6 +62,7 @@ typedef struct
 	 * curl API puts internal errors in this buffer used for error reporting
 	 */
 	char		curl_error_buffer[CURL_ERROR_SIZE];
+	long		status;
 
 	/*
 	 * perform() (libcurl API) lets us know if the session is over using this
@@ -531,6 +532,11 @@ churl_cleanup(CHURL_HANDLE handle, bool after_error)
 	churl_cleanup_context(context);
 }
 
+long
+churl_get_error(CHURL_HANDLE handle) {
+	return ((churl_context *) handle)->status;
+}
+
 churl_context *
 churl_new_context()
 {
@@ -891,7 +897,6 @@ check_response_status(churl_context *context)
 	CURLMsg    *msg;			/* for picking up messages with the transfer
 								 * status */
 	int			msgs_left;		/* how many messages are left */
-	long		status;
 
 	while ((msg = curl_multi_info_read(context->multi_handle, &msgs_left)))
 	{
@@ -900,7 +905,7 @@ check_response_status(churl_context *context)
 		/* CURLMSG_DONE is the only possible status. */
 		if (msg->msg != CURLMSG_DONE)
 			continue;
-		if (CURLE_OK != (status = msg->data.result))
+		if (CURLE_OK != (context->status = msg->data.result))
 		{
 			char	   *addr = get_dest_address(msg->easy_handle);
 			StringInfoData err;
@@ -913,7 +918,7 @@ check_response_status(churl_context *context)
 			 */
 
 			appendStringInfo(&err, "transfer error (%ld): %s",
-							 status, curl_easy_strerror(status));
+							 context->status, curl_easy_strerror(context->status));
 
 			if (addr)
 			{

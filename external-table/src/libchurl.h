@@ -138,6 +138,8 @@ void		churl_read_check_connectivity(CHURL_HANDLE handle);
  */
 void		churl_cleanup(CHURL_HANDLE handle, bool after_error);
 
+long		churl_get_error(CHURL_HANDLE handle);
+
 #define LOCAL_HOST_RESOLVE_STRING_FORMAT "localhost:%d:127.0.0.1"
 /* PORT can be at most five digits giving a total length for the resolve string
  * of 25 plus one for the trailing '\0'
