@@ -146,7 +146,9 @@ pxfprotocol_import(PG_FUNCTION_ARGS)
 		// OPTION 1: compile time constant
 		// OPTION 2: catalog table
 		for (int attempt = 1; attempt <= PXF_IMPORT_MAX_ATTEMPTS; attempt++) {
-			int bytes_read = 0;
+			// TODO: why volatile?
+			// see comments in elog.h from master branch of GPDB
+			volatile int bytes_read = -1;
 			PG_TRY();
 			{
 				ereport(DEBUG3, (errmsg("gpbridge_import_start - attempt #%d of %d", attempt, PXF_IMPORT_MAX_ATTEMPTS)));
@@ -158,10 +160,9 @@ pxfprotocol_import(PG_FUNCTION_ARGS)
 					// TODO: is this safe to include in the retry?
 					// databuf is on the fcinfo struct and curl may have started writing into it
 					ereport(DEBUG3, (errmsg("calling gpbridge_read")));
-					int bytes_read = gpbridge_read(context, EXTPROTOCOL_GET_DATABUF(fcinfo), EXTPROTOCOL_GET_DATALEN(fcinfo));
+					bytes_read = gpbridge_read(context, EXTPROTOCOL_GET_DATABUF(fcinfo), EXTPROTOCOL_GET_DATALEN(fcinfo));
 					ereport(DEBUG3, (errmsg("gpbridge_read read %d bytes", bytes_read)));
 				}
-
 			}
 			PG_CATCH();
 			{
@@ -176,7 +177,8 @@ pxfprotocol_import(PG_FUNCTION_ARGS)
 				EXTPROTOCOL_SET_USER_CTX(fcinfo, NULL);
 			}
 			PG_END_TRY();
-			PG_RETURN_INT32(bytes_read);
+			if (bytes_read >= 0)
+				PG_RETURN_INT32(bytes_read);
 		}
 	}
 	/* sometimes an additional call can be executed even when we completed reading data from the stream */

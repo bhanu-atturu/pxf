@@ -4,7 +4,7 @@ MODULE_big = pxf
 OBJS       = src/pxfprotocol.o src/pxfbridge.o src/pxfuriparser.o src/libchurl.o src/pxfutils.o src/pxfheaders.o src/gpdbwritableformatter.o src/pxffilters.o
 REGRESS    = setup pxf pxfinvalid
 
-PG_CONFIG = pg_config
+PG_CONFIG ?= pg_config
 PGXS := $(shell $(PG_CONFIG) --pgxs)
 
 PXF_API_VERSION := $(shell cat ../api_version)
