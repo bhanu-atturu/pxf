@@ -132,6 +132,7 @@ pxfprotocol_import(PG_FUNCTION_ARGS)
 	/* last call -- cleanup */
 	if (EXTPROTOCOL_IS_LAST_CALL(fcinfo))
 	{
+		ereport(DEBUG3, (errmsg("pxfprotocol_import last call")));
 		cleanup_context(context);
 		EXTPROTOCOL_SET_USER_CTX(fcinfo, NULL);
 		PG_RETURN_INT32(0);
@@ -139,11 +140,13 @@ pxfprotocol_import(PG_FUNCTION_ARGS)
 	/* first call -- do any desired init */
 	if (context == NULL)
 	{
+		ereport(DEBUG3, (errmsg("pxfprotocol_import first call")));
 		ereport(DEBUG3, (errmsg("before gpbridge_import_start, max attempts=%d", PXF_IMPORT_MAX_ATTEMPTS)));
 		// TODO: how do we set the maximum number of retries?
 		// OPTION 1: compile time constant
 		// OPTION 2: catalog table
 		for (int attempt = 1; attempt <= PXF_IMPORT_MAX_ATTEMPTS; attempt++) {
+			int bytes_read = 0;
 			PG_TRY();
 			{
 				ereport(DEBUG3, (errmsg("gpbridge_import_start - attempt #%d of %d", attempt, PXF_IMPORT_MAX_ATTEMPTS)));
@@ -151,12 +154,14 @@ pxfprotocol_import(PG_FUNCTION_ARGS)
 				EXTPROTOCOL_SET_USER_CTX(fcinfo, context);
 				gpbridge_import_start(context);
 
-				if (context->completed)
-					PG_RETURN_INT32(0);
-				// TODO: is this safe to include in the retry?
-				// databuf is on the fcinfo struct and curl may have started writing into it
-				int bytes_read = gpbridge_read(context, EXTPROTOCOL_GET_DATABUF(fcinfo), EXTPROTOCOL_GET_DATALEN(fcinfo));
-				PG_RETURN_INT32(bytes_read);
+				if (!context->completed) {
+					// TODO: is this safe to include in the retry?
+					// databuf is on the fcinfo struct and curl may have started writing into it
+					ereport(DEBUG3, (errmsg("calling gpbridge_read")));
+					int bytes_read = gpbridge_read(context, EXTPROTOCOL_GET_DATABUF(fcinfo), EXTPROTOCOL_GET_DATALEN(fcinfo));
+					ereport(DEBUG3, (errmsg("gpbridge_read read %d bytes", bytes_read)));
+				}
+
 			}
 			PG_CATCH();
 			{
@@ -171,6 +176,7 @@ pxfprotocol_import(PG_FUNCTION_ARGS)
 				EXTPROTOCOL_SET_USER_CTX(fcinfo, NULL);
 			}
 			PG_END_TRY();
+			PG_RETURN_INT32(bytes_read);
 		}
 	}
 	/* sometimes an additional call can be executed even when we completed reading data from the stream */

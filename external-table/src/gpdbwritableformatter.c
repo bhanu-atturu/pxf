@@ -684,6 +684,8 @@ gpdbwritableformatter_import(PG_FUNCTION_ARGS)
 	int16		ncolumns_remote = 0;
 	int			remaining = 0;
 
+	ereport(DEBUG3, (errmsg("gpdbwritableformatter_import called")));
+
 	/* Must be called via the external table format manager */
 	if (!CALLED_AS_FORMATTER(fcinfo))
 		ereport(ERROR, (errcode(ERRCODE_EXTERNAL_ROUTINE_EXCEPTION),
