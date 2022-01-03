@@ -21,6 +21,7 @@ package org.greenplum.pxf.plugins.json;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -110,7 +111,7 @@ public class JsonRecordReader implements RecordReader<LongWritable, Text> {
                 return false;
             }
 
-            long jsonStart = pos - json.length();
+            long jsonStart = pos - json.getBytes(StandardCharsets.UTF_8).length;
 
             // if the "begin-object" position is after the end of our split, we should ignore it
             if (jsonStart >= end) {

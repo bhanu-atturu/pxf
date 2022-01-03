@@ -112,7 +112,16 @@ public class PartitionedJsonParser {
 
 		while ((i = inputStreamReader.read()) != EOF) {
 			char c = (char) i;
-			bytesRead++;
+			// UTF-8 uses the two (2) high bits (6 & 7) to indicate if there are any more bytes
+			// U+0000 -- U+007F use a single byte
+			// U+0080 -- U+07FF use two bytes
+			// TODO: Java `char`s are only two bytes in size; do we need to worry about three and four byte unicode?
+			// https://en.wikipedia.org/wiki/UTF-8#Encoding
+			if (i <= 0x7F) {
+				bytesRead += 1;
+			} else {
+				bytesRead += 2;
+			}
 
 			lexer.lex(c);
 
