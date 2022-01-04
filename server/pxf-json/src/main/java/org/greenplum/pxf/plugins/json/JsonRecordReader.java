@@ -21,12 +21,14 @@ package org.greenplum.pxf.plugins.json;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.Seekable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.compress.CompressionCodec;
@@ -57,6 +59,7 @@ public class JsonRecordReader implements RecordReader<LongWritable, Text> {
     private long end;
     private int maxObjectLength;
     private InputStream is;
+    private Seekable filePos;
     private PartitionedJsonParser parser;
     private final String jsonMemberName;
 
@@ -91,6 +94,7 @@ public class JsonRecordReader implements RecordReader<LongWritable, Text> {
             }
             is = fileIn;
         }
+        filePos = fileIn;
         parser = new PartitionedJsonParser(is);
         this.pos = start;
     }
@@ -101,7 +105,7 @@ public class JsonRecordReader implements RecordReader<LongWritable, Text> {
     @Override
     public boolean next(LongWritable key, Text value) throws IOException {
 
-        while (pos < end) {
+        while (filePos.getPos() <= end) {
 
             String json = parser.nextObjectContainingMember(jsonMemberName);
             pos = start + parser.getBytesRead();
@@ -110,7 +114,7 @@ public class JsonRecordReader implements RecordReader<LongWritable, Text> {
                 return false;
             }
 
-            long jsonStart = pos - json.length();
+            long jsonStart = pos - json.getBytes(StandardCharsets.UTF_8).length;
 
             // if the "begin-object" position is after the end of our split, we should ignore it
             if (jsonStart >= end) {
@@ -120,7 +124,7 @@ public class JsonRecordReader implements RecordReader<LongWritable, Text> {
             if (json.length() > maxObjectLength) {
                 LOG.warn("Skipped JSON object of size " + json.length() + " at pos " + jsonStart);
             } else {
-                key.set(jsonStart);
+                key.set(0L);
                 value.set(json);
                 return true;
             }
