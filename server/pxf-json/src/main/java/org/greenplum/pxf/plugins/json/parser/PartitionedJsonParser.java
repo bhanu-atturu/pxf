@@ -52,6 +52,7 @@ public class PartitionedJsonParser {
 
 		// You need to wrap the InputStream with an InputStreamReader, so that it can encode the incoming byte stream as
 		// UTF-8 characters
+		// TODO: what if the InputStream `is` is not UTF-8 characters?
 		this.inputStreamReader = new InputStreamReader(is, StandardCharsets.UTF_8);
 	}
 
