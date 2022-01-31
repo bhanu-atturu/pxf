@@ -165,7 +165,7 @@ resources:
     password: ((pxf-cloudbuild-service-account-key))
 {% endfor %} {# gp5, gp6, and gp7 #}
 
-{% set gp_ver = 6 %}
+{% for gp_ver in range(6, 8) %}
 - name: gpdb[[gp_ver]]-pxf-dev-rhel8-image
   type: registry-image
   icon: docker
@@ -271,6 +271,14 @@ resources:
     json_key: ((concourse-gcs-resources-service-account-key))
     regexp: server/published/master/greenplum-db-(7.*)-rhel7-x86_64.rpm
 
+- name: gpdb7_rhel8_rpm_latest-0
+  type: gcs
+  icon: google-drive
+  source:
+    bucket: pivotal-gpdb-concourse-resources-prod
+    json_key: ((concourse-gcs-resources-service-account-key))
+    regexp: server/published/master/greenplum-db-(7.*)-rhel8-x86_64.rpm
+
 ## ---------- PXF 5 Artifact ---------------
 {% if multinode %}
 - name: pxf5_gp6_rhel7_released
@@ -304,7 +312,7 @@ resources:
     versioned_file: dev/[[user]]-[[branch]]/snapshots/pxf-gp[[gp_ver]]-ubuntu18.04.tar.gz
 {% set gp_ver = None %}
 
-{% for gp_ver in range(6, 7) %}
+{% for gp_ver in range(6, 8) %}
 - name: pxf_gp[[gp_ver]]_tarball_rhel8
   type: gcs
   icon: google-drive
@@ -478,7 +486,7 @@ jobs:
 {% set gp_ver = None %}
 
 ## ---------- RHEL 8 Swimlane ----------
-{% set gp_ver = 6 %}
+{% for gp_ver in range(6, 8) %}
 - name: Build PXF-GP[[gp_ver]] on RHEL8
   plan:
   - in_parallel:
@@ -522,7 +530,13 @@ jobs:
     params:
       ACCESS_KEY_ID: ((tf-machine-access-key-id))
       GP_VER: [[gp_ver]]
+{% if gp_ver == 7 %}
+      GROUP: fdw_gpdb_schedule
+      HADOOP_JAVA_HOME: /usr/lib/jvm/jre-1.8.0-openjdk
+      PG_REGRESS: true
+{% else %}
       GROUP: gpdb,proxy,profile
+{% endif %}
       SECRET_ACCESS_KEY: ((tf-machine-secret-access-key))
 {% set gp_ver = None %}
 
