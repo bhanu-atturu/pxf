@@ -19,9 +19,9 @@ package org.greenplum.pxf.plugins.json.parser;
  * under the License.
  */
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.EnumSet;
@@ -42,34 +42,31 @@ public class PartitionedJsonParser {
 	private static final char BACKSLASH = '\\';
 	private static final char START_BRACE = '{';
 	private static final int EOF = -1;
-	private final InputStreamReader inputStreamReader;
 	private final JsonLexer lexer;
 	private long bytesRead = 0;
+	private InputStream inputStream;
 	private boolean endOfStream = false;
-	private StringBuilder charObject;
 
-	public PartitionedJsonParser(InputStream is) {
+	public PartitionedJsonParser(InputStream inputStream) {
 		this.lexer = new JsonLexer();
+		this.inputStream = inputStream;
 
 		// You need to wrap the InputStream with an InputStreamReader, so that it can encode the incoming byte stream as
 		// UTF-8 characters
-		this.inputStreamReader = new InputStreamReader(is, StandardCharsets.UTF_8);
 	}
 
 	private boolean scanToFirstBeginObject() throws IOException {
-		charObject = new StringBuilder();
 		// seek until we hit the first begin-object
-		char prev = ' ';
+		int prev = ' ';
 		int i;
-		while ((i = inputStreamReader.read()) != EOF) {
-			char c = (char) i;
-			charObject.append(c);
-			if (c == START_BRACE && prev != BACKSLASH) {
+		while ((i = inputStream.read()) != EOF) {
+			bytesRead++;
+			if (i == START_BRACE && prev != BACKSLASH) {
 				lexer.setState(JsonLexer.JsonLexerState.BEGIN_OBJECT);
 
 				return true;
 			}
-			prev = c;
+			prev = i;
 		}
 		endOfStream = true;
 		return false;
@@ -101,8 +98,8 @@ public class PartitionedJsonParser {
 
 		int i;
 		int objectCount = 0;
-		StringBuilder currentObject = new StringBuilder();
-		StringBuilder currentString = new StringBuilder();
+		ByteArrayOutputStream currentObject = new ByteArrayOutputStream(1024);
+		ByteArrayOutputStream currentString = new ByteArrayOutputStream(1024);
 		MemberSearchState memberState = MemberSearchState.SEARCHING;
 
 		List<Integer> objectStack = new ArrayList<Integer>();
@@ -110,45 +107,44 @@ public class PartitionedJsonParser {
 		if (!scanToFirstBeginObject()) {
 			return null;
 		}
-		currentObject.append(START_BRACE);
+		currentObject.write(START_BRACE);
 		objectStack.add(0);
 
-		while ((i = inputStreamReader.read()) != EOF) {
-			char c = (char) i;
+		while ((i = inputStream.read()) != EOF) {
+			bytesRead++;
 
-			lexer.lex(c);
+			lexer.lex(i);
 
-			currentObject.append(c);
-			charObject.append(c);
+			currentObject.write(i);
 
 			switch (memberState) {
 			case SEARCHING:
 				if (lexer.getState() == JsonLexerState.BEGIN_STRING) {
 					// we found the start of a string, so reset our string buffer
-					currentString.setLength(0);
+					currentString.reset();
 				} else if (inStringStates.contains(lexer.getState())) {
 					// we're still inside a string, so keep appending to our buffer
-					currentString.append(c);
-				} else if (lexer.getState() == JsonLexerState.END_STRING && memberName.equals(currentString.toString())) {
+					currentString.write(i);
+				} else if (lexer.getState() == JsonLexerState.END_STRING && memberName.equals(currentString.toString(StandardCharsets.UTF_8.toString()))) {
 
 					if (objectStack.size() > 0) {
 						// we hit the end of the string and it matched the member name (yay)
 						memberState = MemberSearchState.FOUND_STRING_NAME;
-						currentString.setLength(0);
+						currentString.reset();
 					}
 				} else if (lexer.getState() == JsonLexerState.BEGIN_OBJECT) {
 					// we are searching and found a '{', so we reset the current object string
 					if (objectStack.size() == 0) {
-						currentObject.setLength(0);
-						currentObject.append(START_BRACE);
+						currentObject.reset();
+						currentObject.write(START_BRACE);
 					}
-					objectStack.add(currentObject.length() - 1);
+					objectStack.add(currentObject.size() - 1);
 				} else if (lexer.getState() == JsonLexerState.END_OBJECT) {
 					if (objectStack.size() > 0) {
 						objectStack.remove(objectStack.size() - 1);
 					}
 					if (objectStack.size() == 0) {
-						currentObject.setLength(0);
+						currentObject.reset();
 					}
 				}
 				break;
@@ -161,7 +157,9 @@ public class PartitionedJsonParser {
 						objectCount = 0;
 
 						if (objectStack.size() > 1) {
-							currentObject.delete(0, objectStack.get(objectStack.size() - 1));
+							byte[] bytes = currentObject.toByteArray();
+							currentObject.reset();
+							currentObject.write(bytes, objectStack.get(objectStack.size() - 1) + 1, bytes.length);
 						}
 						objectStack.clear();
 					} else {
@@ -177,7 +175,7 @@ public class PartitionedJsonParser {
 					objectCount--;
 					if (objectCount < 0) {
 						// we're done! we reached an "}" which is at the same level as the member we found
-						return currentObject.toString();
+						return currentObject.toString(StandardCharsets.UTF_8.toString());
 					}
 				}
 				break;
@@ -191,8 +189,6 @@ public class PartitionedJsonParser {
 	 * @return Returns the number of bytes read from the stream.
 	 */
 	public long getBytesRead() {
-		bytesRead += charObject.toString().getBytes(StandardCharsets.UTF_8).length;
-		charObject.setLength(0);
 		return bytesRead;
 	}
 

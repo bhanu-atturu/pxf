@@ -97,10 +97,10 @@ public class JsonLexer {
 	/**
 	 * Given the current lexer state and the next cursor position computes the next {@link #state}.
 	 * 
-	 * @param c
-	 *            next character the cursor is moved to
+	 * @param i
+	 *            next byte the cursor is moved to
 	 */
-	public void lex(char c) {
+	public void lex(int i) {
 		switch (state) {
 		case NULL:
 		case BEGIN_OBJECT:
@@ -112,11 +112,11 @@ public class JsonLexer {
 		case NAME_SEPARATOR:
 		case DONT_CARE:
 		case WHITESPACE: {
-			if (Character.isWhitespace(c)) {
+			if (Character.isWhitespace(i)) {
 				state = JsonLexerState.WHITESPACE;
 				break;
 			}
-			switch (c) {
+			switch (i) {
 			// value-separator (comma)
 			case ',':
 				state = JsonLexerState.VALUE_SEPARATOR;
@@ -155,7 +155,7 @@ public class JsonLexer {
 			state = JsonLexerState.INSIDE_STRING;
 			// we will now enter the STRING state below
 
-			switch (c) {
+			switch (i) {
 			// end-string
 			case '"':
 				state = JsonLexerState.END_STRING;
