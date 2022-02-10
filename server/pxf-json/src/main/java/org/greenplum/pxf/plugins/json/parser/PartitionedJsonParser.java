@@ -23,9 +23,8 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
 import java.util.EnumSet;
-import java.util.List;
+import java.util.Stack;
 
 import org.greenplum.pxf.plugins.json.parser.JsonLexer.JsonLexerState;
 
@@ -102,13 +101,13 @@ public class PartitionedJsonParser {
 		ByteArrayOutputStream currentString = new ByteArrayOutputStream(1024);
 		MemberSearchState memberState = MemberSearchState.SEARCHING;
 
-		List<Integer> objectStack = new ArrayList<Integer>();
+		Stack<Integer> objectStack = new Stack<>();
 
 		if (!scanToFirstBeginObject()) {
 			return null;
 		}
 		currentObject.write(START_BRACE);
-		objectStack.add(0);
+		objectStack.push(0);
 
 		while ((i = inputStream.read()) != EOF) {
 			bytesRead++;
@@ -127,23 +126,23 @@ public class PartitionedJsonParser {
 					currentString.write(i);
 				} else if (lexer.getState() == JsonLexerState.END_STRING && memberName.equals(currentString.toString(StandardCharsets.UTF_8.toString()))) {
 
-					if (objectStack.size() > 0) {
+					if (!objectStack.isEmpty()) {
 						// we hit the end of the string and it matched the member name (yay)
 						memberState = MemberSearchState.FOUND_STRING_NAME;
 						currentString.reset();
 					}
 				} else if (lexer.getState() == JsonLexerState.BEGIN_OBJECT) {
 					// we are searching and found a '{', so we reset the current object string
-					if (objectStack.size() == 0) {
+					if (objectStack.isEmpty()) {
 						currentObject.reset();
 						currentObject.write(START_BRACE);
 					}
-					objectStack.add(currentObject.size() - 1);
+					objectStack.push(currentObject.size() - 1);
 				} else if (lexer.getState() == JsonLexerState.END_OBJECT) {
-					if (objectStack.size() > 0) {
+					if (!objectStack.isEmpty()) {
 						objectStack.remove(objectStack.size() - 1);
 					}
-					if (objectStack.size() == 0) {
+					if (objectStack.isEmpty()) {
 						currentObject.reset();
 					}
 				}
@@ -159,7 +158,9 @@ public class PartitionedJsonParser {
 						if (objectStack.size() > 1) {
 							byte[] bytes = currentObject.toByteArray();
 							currentObject.reset();
-							currentObject.write(bytes, objectStack.get(objectStack.size() - 1) + 1, bytes.length);
+							int offset = objectStack.pop();
+							int len = bytes.length - offset;
+							currentObject.write(bytes, offset, len);
 						}
 						objectStack.clear();
 					} else {
