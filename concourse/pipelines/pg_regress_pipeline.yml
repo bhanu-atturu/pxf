@@ -71,7 +71,6 @@ jobs:
     params:
       LICENSE: ((pxf-rpm-license))
       VENDOR: ((pxf-rpm-vendor))
-      FDW: true
   - put: pxf_tarball
     params:
       file: dist/pxf.tar.gz
