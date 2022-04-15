@@ -42,6 +42,13 @@ function compile_pxf() {
         source ~/.pxfrc
         VENDOR='${VENDOR}' LICENSE='${LICENSE}' make -C '${PWD}/pxf_src' ${MAKE_TARGET}
     "
+
+    if [[ ${FDW} == true ]]; then
+      bash -c "
+          source ~/.pxfrc
+          make -C '${PWD}/pxf_src' fdw
+      "
+    fi
 }
 
 function package_pxf() {
