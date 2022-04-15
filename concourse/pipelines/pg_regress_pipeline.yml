@@ -29,7 +29,7 @@ resources:
     username: _json_key
     password: ((pxf-cloudbuild-service-account-key))
 
-- name: gpdb7-pxf-dev-centos7-hdp2-server
+- name: gpdb6-pxf-dev-centos7-hdp2-server
   type: registry-image
   source:
     repository: gcr.io/data-gpdb-ud/gpdb-pxf-dev/gpdb7-centos7-test-pxf-hdp2
@@ -52,7 +52,7 @@ resources:
     bucket: {{pxf-aws-bucket-name}}
     region_name: {{aws-region}}
     secret_access_key: {{bucket-secret-access-key}}
-    versioned_file: pxf_artifacts/((folder-prefix))_((gpdb-branch))/latest/pxf.tar.gz
+    versioned_file: pxf_artifacts/((folder-prefix))_((gpdb-branch))/latest/pxf-gp7.el7.tar.gz
 
 jobs:
 
@@ -73,7 +73,7 @@ jobs:
       VENDOR: ((pxf-rpm-vendor))
   - put: pxf_tarball
     params:
-      file: dist/pxf.tar.gz
+      file: dist/pxf-gp*.el7.tar.gz
 
 - name: test_pxf
   plan:
@@ -90,16 +90,17 @@ jobs:
       resource: gpdb7_rhel7_rpm_latest-0
       passed:
         - compile_pxf
-    - get: gpdb7-pxf-dev-centos7-hdp2-server
+    - get: gpdb6-pxf-dev-centos7-hdp2-server
   - task: test_pxf
     file: pxf_src/concourse/tasks/test.yml
-    image: gpdb7-pxf-dev-centos7-hdp2-server
+    image: gpdb6-pxf-dev-centos7-hdp2-server
     params:
       GROUP: fdw_smoke_schedule
       HADOOP_CLIENT: HDP
       IMPERSONATION: true
       PGPORT: {{pgport}}
       PG_REGRESS: true
+      GP_VER: 7
 
 - name: test_pxf_s3
   plan:
@@ -116,11 +117,11 @@ jobs:
       resource: gpdb7_rhel7_rpm_latest-0
       passed:
         - compile_pxf
-    - get: gpdb7-pxf-dev-centos7-hdp2-server
+    - get: gpdb6-pxf-dev-centos7-hdp2-server
   - task: test_pxf
     attempts: 2
     file: pxf_src/concourse/tasks/test.yml
-    image: gpdb7-pxf-dev-centos7-hdp2-server
+    image: gpdb6-pxf-dev-centos7-hdp2-server
     params:
       ACCESS_KEY_ID: {{tf-machine-access-key-id}}
       GROUP: fdw_hcfs_schedule
@@ -128,6 +129,7 @@ jobs:
       IMPERSONATION: true
       PGPORT: {{pgport}}
       PG_REGRESS: true
+      GP_VER: 7
       PROTOCOL: s3
       SECRET_ACCESS_KEY: {{tf-machine-secret-access-key}}
 
@@ -146,11 +148,11 @@ jobs:
       resource: gpdb7_rhel7_rpm_latest-0
       passed:
         - compile_pxf
-    - get: gpdb7-pxf-dev-centos7-hdp2-server
+    - get: gpdb6-pxf-dev-centos7-hdp2-server
   - task: test_pxf
     attempts: 2
     file: pxf_src/concourse/tasks/test.yml
-    image: gpdb7-pxf-dev-centos7-hdp2-server
+    image: gpdb6-pxf-dev-centos7-hdp2-server
     params:
       ACCESS_KEY_ID: {{tf-machine-access-key-id}}
       GOOGLE_CREDENTIALS: {{data-gpdb-ud-google-json-key}}
@@ -159,6 +161,7 @@ jobs:
       IMPERSONATION: true
       PGPORT: {{pgport}}
       PG_REGRESS: true
+      GP_VER: 7
       PROTOCOL: gs
 
 - name: test_pxf_wasbs
@@ -176,11 +179,11 @@ jobs:
       resource: gpdb7_rhel7_rpm_latest-0
       passed:
         - compile_pxf
-    - get: gpdb7-pxf-dev-centos7-hdp2-server
+    - get: gpdb6-pxf-dev-centos7-hdp2-server
   - task: test_pxf
     attempts: 2
     file: pxf_src/concourse/tasks/test.yml
-    image: gpdb7-pxf-dev-centos7-hdp2-server
+    image: gpdb6-pxf-dev-centos7-hdp2-server
     params:
       ACCESS_KEY_ID: {{tf-machine-access-key-id}}
       GROUP: fdw_hcfs_schedule
@@ -188,6 +191,7 @@ jobs:
       IMPERSONATION: true
       PGPORT: {{pgport}}
       PG_REGRESS: true
+      GP_VER: 7
       PROTOCOL: wasbs
       WASBS_ACCOUNT_KEY: {{wasb-account-key}}
       WASBS_ACCOUNT_NAME: {{wasb-account-name}}
@@ -207,11 +211,11 @@ jobs:
       resource: gpdb7_rhel7_rpm_latest-0
       passed:
         - compile_pxf
-    - get: gpdb7-pxf-dev-centos7-hdp2-server
+    - get: gpdb6-pxf-dev-centos7-hdp2-server
   - task: test_pxf
     attempts: 2
     file: pxf_src/concourse/tasks/test.yml
-    image: gpdb7-pxf-dev-centos7-hdp2-server
+    image: gpdb6-pxf-dev-centos7-hdp2-server
     params:
       ADL_ACCOUNT: {{adl-account}}
       ADL_OAUTH2_CLIENT_ID: {{adl-client-id}}
@@ -222,6 +226,7 @@ jobs:
       IMPERSONATION: true
       PGPORT: {{pgport}}
       PG_REGRESS: true
+      GP_VER: 7
       PROTOCOL: adl
 
 - name: test_pxf_minio
@@ -239,13 +244,14 @@ jobs:
       resource: gpdb7_rhel7_rpm_latest-0
       passed:
         - compile_pxf
-    - get: gpdb7-pxf-dev-centos7-hdp2-server
+    - get: gpdb6-pxf-dev-centos7-hdp2-server
   - task: test_pxf
     file: pxf_src/concourse/tasks/test.yml
-    image: gpdb7-pxf-dev-centos7-hdp2-server
+    image: gpdb6-pxf-dev-centos7-hdp2-server
     params:
       GROUP: fdw_hcfs_schedule
       IMPERSONATION: false
       PGPORT: {{pgport}}
       PG_REGRESS: true
+      GP_VER: 7
       PROTOCOL: minio
