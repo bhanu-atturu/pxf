@@ -5,9 +5,11 @@ set -eoux pipefail
 GPHOME=/usr/local/greenplum-db-devel
 PXF_ARTIFACTS_DIR=${PWD}/${OUTPUT_ARTIFACT_DIR}
 
+source "${GPHOME}/greenplum_path.sh"
+
 # use a login shell for setting environment
 bash --login -c "
-	export PXF_HOME=${GPHOME}/pxf
+	source ~/.pxfrc
 	make -C '${PWD}/pxf_src' test install
 "
 

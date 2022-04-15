@@ -6,48 +6,28 @@ resource_types:
     repository: frodenas/gcs-resource
 
 resources:
-
-- name: gpdb_src
-  type: git
-  source:
-    branch: {{gpdb-git-branch}}
-    uri: {{gpdb-git-remote}}
-
-- name: gpdb_pxf_trigger
-  type: git
-  source:
-    branch: {{gpdb-branch}}
-    uri: {{gpdb-git-remote}}
-    paths:
-    - gpcontrib/pxf_fdw
-    - src/backend/foreign
-    - src/backend/commands/copy.c
-    - src/include/commands/copy.h
-    - src/include/catalog/pg_foreign_server.h
-    - src/include/catalog/pg_foreign_data_wrapper.h
-    - src/backend/executor/nodeForeignscan.c
-    - src/include/executor/nodeForeignscan.h
-
 - name: pxf_src
   type: git
   source:
-    branch: {{pxf-git-branch}}
+    branch: update-pg-regress
     uri: {{pxf-git-remote}}
     private_key: ((ccp-git-key))
 
-- name: gpdb7-pxf-dev-centos7
+- name: gpdb7_rhel7_rpm_latest-0
+  type: gcs
+  icon: google-drive
+  source:
+    bucket: ((gp7-alpha-releng-drop-bucket))
+    json_key: ((concourse-gcs-resources-service-account-key))
+    regexp: server/published/master/greenplum-db-(7.*)-rhel7-x86_64.rpm
+
+- name: gpdb7-pxf-dev-centos7-image
   type: registry-image
   source:
     repository: gcr.io/data-gpdb-ud/gpdb-pxf-dev/gpdb7-centos7-test-pxf
     tag: latest
     username: _json_key
     password: ((pxf-cloudbuild-service-account-key))
-
-- name: gpdb7-centos7-build
-  type: registry-image
-  source:
-    repository: gcr.io/data-gpdb-public-images/gpdb7-centos7-build
-    tag: latest
 
 - name: gpdb7-pxf-dev-centos7-hdp2-server
   type: registry-image
@@ -56,6 +36,14 @@ resources:
     tag: latest
     username: _json_key
     password: ((pxf-cloudbuild-service-account-key))
+
+- name: pxf-build-dependencies
+  type: gcs
+  icon: google-drive
+  source:
+    bucket: data-gpdb-ud-pxf-build-resources
+    json_key: ((pxf-storage-service-account-key))
+    versioned_file: build-dependencies/pxf-build-dependencies.tar.gz
 
 - name: pxf_tarball
   type: s3
@@ -66,15 +54,6 @@ resources:
     secret_access_key: {{bucket-secret-access-key}}
     versioned_file: pxf_artifacts/((folder-prefix))_((gpdb-branch))/latest/pxf.tar.gz
 
-- name: bin_gpdb
-  type: s3
-  source:
-    access_key_id: {{bucket-access-key-id}}
-    bucket: {{pxf-aws-bucket-name}}
-    region_name: {{aws-region}}
-    secret_access_key: {{bucket-secret-access-key}}
-    versioned_file: pxf_artifacts/((folder-prefix))_((gpdb-branch))/latest/bin_gpdb.tar.gz
-
 jobs:
 
 - name: compile_pxf
@@ -82,34 +61,19 @@ jobs:
   - in_parallel:
     - get: pxf_src
       trigger: true
-    - get: gpdb_src
-    - get: gpdb_pxf_trigger
-      trigger: true
-    - get: gpdb7-pxf-dev-centos7
-  - task: compile_pxf
-    image: gpdb7-pxf-dev-centos7
-    file: pxf_src/concourse/tasks/compile_pxf.yml
-  - put: pxf_tarball
-    params: {file: pxf_artifacts/pxf.tar.gz}
-
-- name: compile_gpdb
-  plan:
-  - in_parallel:
-    - get: gpdb_src
-      params: {submodules: all, submodules_recursive: true}
-      trigger: true
-    - get: gpdb7-centos7-build
-  - task: compile_gpdb_centos7
-    file: gpdb_src/concourse/tasks/compile_gpdb.yml
-    image: gpdb7-centos7-build
+    - get: gpdb_package
+      resource: gpdb7_rhel7_rpm_latest-0
+    - get: pxf-build-dependencies
+    - get: gpdb7-pxf-dev-centos7-image
+  - task: build_pxf
+    image: gpdb7-pxf-dev-centos7-image
+    file: pxf_src/concourse/tasks/build.yml
     params:
-      BLD_TARGETS: "clients loaders"
-      CONFIGURE_FLAGS: '--enable-cassert --enable-debug-extensions'
-      TARGET_OS: centos
-      TARGET_OS_VERSION: 7
-    timeout: 30m
-  - put: bin_gpdb
-    params: {file: gpdb_artifacts/bin_gpdb.tar.gz}
+      LICENSE: ((pxf-rpm-license))
+      VENDOR: ((pxf-rpm-vendor))
+  - put: pxf_tarball
+    params:
+      file: dist/pxf.tar.gz
 
 - name: test_pxf
   plan:
@@ -122,33 +86,20 @@ jobs:
       passed:
       - compile_pxf
       trigger: true
-    - get: bin_gpdb
+    - get: gpdb_package
+      resource: gpdb7_rhel7_rpm_latest-0
       passed:
-      - compile_gpdb
-      trigger: true
-    - get: gpdb_src
-      passed:
-      - compile_pxf
-      - compile_gpdb
-      trigger: true
+        - compile_pxf
     - get: gpdb7-pxf-dev-centos7-hdp2-server
   - task: test_pxf
+    file: pxf_src/concourse/tasks/test.yml
     image: gpdb7-pxf-dev-centos7-hdp2-server
-    config:
-      platform: linux
-      inputs:
-      - name: gpdb_src
-      - name: bin_gpdb
-      - name: pxf_src
-      - name: pxf_tarball
-      params:
-        GROUP: fdw_smoke_schedule
-        HADOOP_CLIENT: HDP
-        IMPERSONATION: true
-        PGPORT: {{pgport}}
-        PG_REGRESS: true
-      run:
-        path: pxf_src/concourse/scripts/test_pxf.bash
+    params:
+      GROUP: fdw_smoke_schedule
+      HADOOP_CLIENT: HDP
+      IMPERSONATION: true
+      PGPORT: {{pgport}}
+      PG_REGRESS: true
 
 - name: test_pxf_s3
   plan:
@@ -161,37 +112,24 @@ jobs:
       passed:
       - compile_pxf
       trigger: true
-    - get: bin_gpdb
+    - get: gpdb_package
+      resource: gpdb7_rhel7_rpm_latest-0
       passed:
-      - compile_gpdb
-      trigger: true
-    - get: gpdb_src
-      passed:
-      - compile_pxf
-      - compile_gpdb
-      trigger: true
+        - compile_pxf
     - get: gpdb7-pxf-dev-centos7-hdp2-server
   - task: test_pxf
     attempts: 2
+    file: pxf_src/concourse/tasks/test.yml
     image: gpdb7-pxf-dev-centos7-hdp2-server
-    config:
-      platform: linux
-      inputs:
-      - name: gpdb_src
-      - name: bin_gpdb
-      - name: pxf_src
-      - name: pxf_tarball
-      params:
-        ACCESS_KEY_ID: {{tf-machine-access-key-id}}
-        GROUP: fdw_hcfs_schedule
-        HADOOP_CLIENT: HDP
-        IMPERSONATION: true
-        PGPORT: {{pgport}}
-        PG_REGRESS: true
-        PROTOCOL: s3
-        SECRET_ACCESS_KEY: {{tf-machine-secret-access-key}}
-      run:
-        path: pxf_src/concourse/scripts/test_pxf.bash
+    params:
+      ACCESS_KEY_ID: {{tf-machine-access-key-id}}
+      GROUP: fdw_hcfs_schedule
+      HADOOP_CLIENT: HDP
+      IMPERSONATION: true
+      PGPORT: {{pgport}}
+      PG_REGRESS: true
+      PROTOCOL: s3
+      SECRET_ACCESS_KEY: {{tf-machine-secret-access-key}}
 
 - name: test_pxf_gcs
   plan:
@@ -204,37 +142,24 @@ jobs:
       passed:
       - compile_pxf
       trigger: true
-    - get: bin_gpdb
+    - get: gpdb_package
+      resource: gpdb7_rhel7_rpm_latest-0
       passed:
-      - compile_gpdb
-      trigger: true
-    - get: gpdb_src
-      passed:
-      - compile_pxf
-      - compile_gpdb
-      trigger: true
+        - compile_pxf
     - get: gpdb7-pxf-dev-centos7-hdp2-server
   - task: test_pxf
     attempts: 2
+    file: pxf_src/concourse/tasks/test.yml
     image: gpdb7-pxf-dev-centos7-hdp2-server
-    config:
-      platform: linux
-      inputs:
-      - name: gpdb_src
-      - name: bin_gpdb
-      - name: pxf_src
-      - name: pxf_tarball
-      params:
-        ACCESS_KEY_ID: {{tf-machine-access-key-id}}
-        GOOGLE_CREDENTIALS: {{data-gpdb-ud-google-json-key}}
-        GROUP: fdw_hcfs_schedule
-        HADOOP_CLIENT: HDP
-        IMPERSONATION: true
-        PGPORT: {{pgport}}
-        PG_REGRESS: true
-        PROTOCOL: gs
-      run:
-        path: pxf_src/concourse/scripts/test_pxf.bash
+    params:
+      ACCESS_KEY_ID: {{tf-machine-access-key-id}}
+      GOOGLE_CREDENTIALS: {{data-gpdb-ud-google-json-key}}
+      GROUP: fdw_hcfs_schedule
+      HADOOP_CLIENT: HDP
+      IMPERSONATION: true
+      PGPORT: {{pgport}}
+      PG_REGRESS: true
+      PROTOCOL: gs
 
 - name: test_pxf_wasbs
   plan:
@@ -247,38 +172,25 @@ jobs:
       passed:
       - compile_pxf
       trigger: true
-    - get: bin_gpdb
+    - get: gpdb_package
+      resource: gpdb7_rhel7_rpm_latest-0
       passed:
-      - compile_gpdb
-      trigger: true
-    - get: gpdb_src
-      passed:
-      - compile_pxf
-      - compile_gpdb
-      trigger: true
+        - compile_pxf
     - get: gpdb7-pxf-dev-centos7-hdp2-server
   - task: test_pxf
     attempts: 2
+    file: pxf_src/concourse/tasks/test.yml
     image: gpdb7-pxf-dev-centos7-hdp2-server
-    config:
-      platform: linux
-      inputs:
-      - name: gpdb_src
-      - name: bin_gpdb
-      - name: pxf_src
-      - name: pxf_tarball
-      params:
-        ACCESS_KEY_ID: {{tf-machine-access-key-id}}
-        GROUP: fdw_hcfs_schedule
-        HADOOP_CLIENT: HDP
-        IMPERSONATION: true
-        PGPORT: {{pgport}}
-        PG_REGRESS: true
-        PROTOCOL: wasbs
-        WASBS_ACCOUNT_KEY: {{wasb-account-key}}
-        WASBS_ACCOUNT_NAME: {{wasb-account-name}}
-      run:
-        path: pxf_src/concourse/scripts/test_pxf.bash
+    params:
+      ACCESS_KEY_ID: {{tf-machine-access-key-id}}
+      GROUP: fdw_hcfs_schedule
+      HADOOP_CLIENT: HDP
+      IMPERSONATION: true
+      PGPORT: {{pgport}}
+      PG_REGRESS: true
+      PROTOCOL: wasbs
+      WASBS_ACCOUNT_KEY: {{wasb-account-key}}
+      WASBS_ACCOUNT_NAME: {{wasb-account-name}}
 
 - name: test_pxf_adl
   plan:
@@ -291,39 +203,26 @@ jobs:
       passed:
       - compile_pxf
       trigger: true
-    - get: bin_gpdb
+    - get: gpdb_package
+      resource: gpdb7_rhel7_rpm_latest-0
       passed:
-      - compile_gpdb
-      trigger: true
-    - get: gpdb_src
-      passed:
-      - compile_pxf
-      - compile_gpdb
-      trigger: true
+        - compile_pxf
     - get: gpdb7-pxf-dev-centos7-hdp2-server
   - task: test_pxf
     attempts: 2
+    file: pxf_src/concourse/tasks/test.yml
     image: gpdb7-pxf-dev-centos7-hdp2-server
-    config:
-      platform: linux
-      inputs:
-      - name: gpdb_src
-      - name: bin_gpdb
-      - name: pxf_src
-      - name: pxf_tarball
-      params:
-        ADL_ACCOUNT: {{adl-account}}
-        ADL_OAUTH2_CLIENT_ID: {{adl-client-id}}
-        ADL_OAUTH2_CREDENTIAL: {{adl-credential}}
-        ADL_OAUTH2_REFRESH_URL: {{adl-refresh-url}}
-        GROUP: fdw_hcfs_schedule
-        HADOOP_CLIENT: HDP
-        IMPERSONATION: true
-        PGPORT: {{pgport}}
-        PG_REGRESS: true
-        PROTOCOL: adl
-      run:
-        path: pxf_src/concourse/scripts/test_pxf.bash
+    params:
+      ADL_ACCOUNT: {{adl-account}}
+      ADL_OAUTH2_CLIENT_ID: {{adl-client-id}}
+      ADL_OAUTH2_CREDENTIAL: {{adl-credential}}
+      ADL_OAUTH2_REFRESH_URL: {{adl-refresh-url}}
+      GROUP: fdw_hcfs_schedule
+      HADOOP_CLIENT: HDP
+      IMPERSONATION: true
+      PGPORT: {{pgport}}
+      PG_REGRESS: true
+      PROTOCOL: adl
 
 - name: test_pxf_minio
   plan:
@@ -336,18 +235,13 @@ jobs:
       passed:
       - compile_pxf
       trigger: true
-    - get: bin_gpdb
+    - get: gpdb_package
+      resource: gpdb7_rhel7_rpm_latest-0
       passed:
-      - compile_gpdb
-      trigger: true
-    - get: gpdb_src
-      passed:
-      - compile_pxf
-      - compile_gpdb
-      trigger: true
+        - compile_pxf
     - get: gpdb7-pxf-dev-centos7-hdp2-server
   - task: test_pxf
-    file: pxf_src/concourse/tasks/test_pxf.yml
+    file: pxf_src/concourse/tasks/test.yml
     image: gpdb7-pxf-dev-centos7-hdp2-server
     params:
       GROUP: fdw_hcfs_schedule
