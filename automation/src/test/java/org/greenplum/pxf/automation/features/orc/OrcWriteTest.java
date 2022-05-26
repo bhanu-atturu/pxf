@@ -9,12 +9,11 @@ import org.greenplum.pxf.automation.utils.system.ProtocolUtils;
 import org.testng.annotations.Test;
 
 import java.io.File;
+import java.util.ArrayList;
+
+import static java.lang.Thread.sleep;
 
 public class OrcWriteTest extends BaseFeature {
-
-    private static final String ORC_PRIMITIVE_TYPES = "orc_types.orc";
-    private static final String PXF_ORC_TABLE = "pxf_orc_primitive_types_writable";
-    private static final String ORC_PRIMITIVE_TYPES_UNORDERED_SUBSET = "orc_types_unordered_subset.orc";
 
     private static final String[] ORC_TABLE_COLUMNS = {
             "id      integer",
@@ -49,6 +48,8 @@ public class OrcWriteTest extends BaseFeature {
             "type_varchar     varchar(32)"
     };
 
+    private ArrayList<File> filesToDelete;
+    private String publicStage;
     private String gpdbTable;
     private String hdfsPath;
     private String resourcePath;
@@ -64,16 +65,51 @@ public class OrcWriteTest extends BaseFeature {
         resourcePath = localDataResourcesFolder + "/orc/";
     }
 
+    @Override
+    public void beforeMethod() throws Exception {
+        filesToDelete = new ArrayList<>();
+        publicStage = "/tmp/publicstage/pxf/";
+    }
+
     @Test(groups = {"features", "gpdb", "security", "hcfs"})
     public void orcWritePrimitives() throws Exception {
         gpdbTable = "orc_primitive_types";
-        fullTestPath = hdfsPath + "writable_orc_primitive_types";
+        fullTestPath = hdfsPath + "orc_primitive_types";
         prepareWritableExternalTable(gpdbTable, ORC_PRIMITIVE_TABLE_COLS, fullTestPath);
 
         prepareReadableExternalTable(gpdbTable, ORC_PRIMITIVE_TABLE_COLS, fullTestPath, false /*mayByPosition*/);
 
         insertPrimitives(gpdbTable);
+
+        // pull down and read created orc files using orc-tools (org.apache.orc.tools)
+        for (String srcPath : hdfs.list(fullTestPath)) {
+            final String fileName = srcPath.replaceAll("(.*)" + fullTestPath + "/", "");
+            final String filePath = publicStage + fileName;
+            filesToDelete.add(new File(filePath));
+            filesToDelete.add(new File(publicStage + "." + fileName + ".crc"));
+            // make sure the file is available, saw flakes on Cloud that listed files were not available
+            int attempts = 0;
+            while (!hdfs.doesFileExist(srcPath) && attempts++ < 20) {
+                sleep(1000);
+            }
+            hdfs.copyToLocal(srcPath, filePath);
+            sleep(250);
+        }
+
         runTincTest("pxf.features.orc.write.primitive_types.runTest");
+    }
+
+    @Override
+    protected void afterMethod() throws Exception {
+        super.afterMethod();
+        if (ProtocolUtils.getPxfTestDebug().equals("true")) {
+            return;
+        }
+        for (File file : filesToDelete) {
+            if (!file.delete()) {
+                ReportUtils.startLevel(null, getClass(), String.format("Problem deleting file '%s'", file));
+            }
+        }
     }
 
     private void insertPrimitives(String exTable) throws Exception {
