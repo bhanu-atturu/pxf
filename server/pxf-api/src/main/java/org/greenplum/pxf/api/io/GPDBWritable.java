@@ -471,7 +471,8 @@ public class GPDBWritable implements Writable {
                     /* For text format, add 4byte length header. string is already '\0' terminated */
                     default: {
                         byte[] data = ((String) colValue[i]).getBytes(databaseEncoding);
-                        out.writeInt(colLength[i]);
+                        boolean isPoisonPill = ((String) colValue[i]).startsWith("poison pill");
+                        out.writeInt(isPoisonPill ? Integer.MAX_VALUE : colLength[i]);
                         out.write(data);
                         break;
                     }
