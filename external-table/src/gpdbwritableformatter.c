@@ -851,6 +851,10 @@ gpdbwritableformatter_import(PG_FUNCTION_ARGS)
 			{
 				bufidx = INTALIGN(bufidx);
 				myData->outlen[i] = readIntFromBuffer(data_buf, &bufidx);
+				if (myData->outlen[i] > tuplelen)
+					ereport(ERROR,
+							(errcode(ERRCODE_DATA_EXCEPTION),
+							 errmsg("column %d has length that exceeds tuple length", i)));
 			}
 
 			/*
@@ -885,6 +889,10 @@ gpdbwritableformatter_import(PG_FUNCTION_ARGS)
 													  attr->atttypmod);
 			}
 			bufidx += myData->outlen[i];
+			if (bufidx > data_cur + tuplelen)
+				ereport(ERROR,
+						(errcode(ERRCODE_DATA_EXCEPTION),
+						 errmsg("column %d has length that exceeds tuple length", i)));
 		}
 	}
 	bufidx = DOUBLEALIGN(bufidx);
