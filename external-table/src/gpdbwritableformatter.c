@@ -852,6 +852,9 @@ gpdbwritableformatter_import(PG_FUNCTION_ARGS)
 				bufidx = INTALIGN(bufidx);
 				myData->outlen[i] = readIntFromBuffer(data_buf, &bufidx);
 				if (myData->outlen[i] > tuplelen)
+					// TODO: Is there a way to autogenerate a coredump w/o panicking the cluster?
+					// TODO: If we use `FATAL` here, are we sure this process won't be re-used for subsequent queries?
+					// TODO: If we use `ERROR` w/ ERRCODE_DATA_EXCEPTION, which users will have access gp_read_error_log('<table-name>')?
 					ereport(FATAL,
 							(errcode(ERRCODE_INTERNAL_ERROR),
 							 errmsg("column %d has length that exceeds tuple length", i)));
@@ -890,6 +893,9 @@ gpdbwritableformatter_import(PG_FUNCTION_ARGS)
 			}
 			bufidx += myData->outlen[i];
 			if (bufidx > data_cur + tuplelen)
+				// TODO: Is there a way to autogenerate a coredump w/o panicking the cluster?
+				// TODO: If we use `FATAL` here, are we sure this process won't be re-used for subsequent queries?
+				// TODO: If we use `ERROR` w/ ERRCODE_DATA_EXCEPTION, which users will have access gp_read_error_log('<table-name>')?
 				ereport(FATAL,
 						(errcode(ERRCODE_INTERNAL_ERROR),
 						 errmsg("column %d has length that exceeds tuple length", i)));
