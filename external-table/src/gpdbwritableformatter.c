@@ -80,6 +80,12 @@ typedef struct
 	 */
 	FmgrInfo   *io_functions;
 	Oid		   *typioparams;
+
+	/* When dump_core_on_error='1' and a malformed tuple is encounted, the
+	 * query will fail and the PXF formatter will log an error message at the
+	 * PANIC leve; by default log at the ERROR level.
+	 */
+	int		   formatter_error_level;
 } format_t;
 
 
@@ -663,6 +669,23 @@ gpdbwritableformatter_export(PG_FUNCTION_ARGS)
 	PG_RETURN_BYTEA_P(myData->export_format_tuple->data);
 }
 
+static void
+parse_params(FunctionCallInfo fcinfo, format_t *myData) {
+	int nargs = FORMATTER_GET_NUM_ARGS(fcinfo);
+	ereport(DEBUG1, (errmsg("number of formatter args: %d", nargs)));
+
+	for (int i = 0; i < nargs; i++)
+	{
+		const char *key = FORMATTER_GET_NTH_ARG_KEY(fcinfo, i + 1);
+		const char *val = FORMATTER_GET_NTH_ARG_VAL(fcinfo, i + 1);
+
+		if (strcmp("dump_core_on_error", key) == 0 && strcmp("1", val) == 0)
+		{
+			myData->formatter_error_level = PANIC;
+		}
+	}
+}
+
 Datum
 gpdbwritableformatter_import(PG_FUNCTION_ARGS)
 {
@@ -679,6 +702,7 @@ gpdbwritableformatter_import(PG_FUNCTION_ARGS)
 	int			data_len;
 	int			tuplelen;
 	int			bufidx = 0;
+	int			tupleEndIdx = 0;
 	int16		version;
 	int8		error_flag = 0;
 	int16		ncolumns_remote = 0;
@@ -716,6 +740,9 @@ gpdbwritableformatter_import(PG_FUNCTION_ARGS)
 		myData->outlen = palloc(sizeof(int) * ncolumns);
 		myData->typioparams = (Oid *) palloc(ncolumns * sizeof(Oid));
 		myData->io_functions = palloc(sizeof(FmgrInfo) * ncolumns);
+		myData->formatter_error_level = ERROR;
+
+		 parse_params(fcinfo, myData);
 
 		for (i = 0; i < ncolumns; i++)
 		{
@@ -788,6 +815,7 @@ gpdbwritableformatter_import(PG_FUNCTION_ARGS)
 		}
 		FORMATTER_RETURN_NOTIFICATION(fcinfo, FMT_NEED_MORE_DATA);
 	}
+	tupleEndIdx = data_cur + tuplelen;
 
 	/* We got here. So, we've the ENTIRE tuple in the buffer */
 	FORMATTER_SET_BAD_ROW_DATA(fcinfo, data_buf + data_cur, tuplelen);
@@ -852,11 +880,8 @@ gpdbwritableformatter_import(PG_FUNCTION_ARGS)
 				bufidx = INTALIGN(bufidx);
 				myData->outlen[i] = readIntFromBuffer(data_buf, &bufidx);
 				if (myData->outlen[i] > tuplelen)
-					// TODO: Is there a way to autogenerate a coredump w/o panicking the cluster?
-					// TODO: If we use `FATAL` here, are we sure this process won't be re-used for subsequent queries?
-					// TODO: If we use `ERROR` w/ ERRCODE_DATA_EXCEPTION, which users will have access gp_read_error_log('<table-name>')?
-					ereport(FATAL,
-							(errcode(ERRCODE_INTERNAL_ERROR),
+					ereport(myData->formatter_error_level,
+							(errcode(ERRCODE_EXTERNAL_ROUTINE_EXCEPTION),
 							 errmsg("column %d has length that exceeds tuple length", i)));
 			}
 
@@ -892,18 +917,15 @@ gpdbwritableformatter_import(PG_FUNCTION_ARGS)
 													  attr->atttypmod);
 			}
 			bufidx += myData->outlen[i];
-			if (bufidx > data_cur + tuplelen)
-				// TODO: Is there a way to autogenerate a coredump w/o panicking the cluster?
-				// TODO: If we use `FATAL` here, are we sure this process won't be re-used for subsequent queries?
-				// TODO: If we use `ERROR` w/ ERRCODE_DATA_EXCEPTION, which users will have access gp_read_error_log('<table-name>')?
-				ereport(FATAL,
-						(errcode(ERRCODE_INTERNAL_ERROR),
+			if (bufidx > tupleEndIdx)
+				ereport(myData->formatter_error_level,
+						(errcode(ERRCODE_EXTERNAL_ROUTINE_EXCEPTION),
 						 errmsg("column %d has length that exceeds tuple length", i)));
 		}
 	}
 	bufidx = DOUBLEALIGN(bufidx);
 
-	if (data_cur + tuplelen != bufidx)
+	if (tupleEndIdx != bufidx)
 		ereport(ERROR,
 				(errcode(ERRCODE_EXTERNAL_ROUTINE_EXCEPTION),
 				 errmsg("tuplelen != bufidx: %d:%d:%d", tuplelen, bufidx, data_cur)));
