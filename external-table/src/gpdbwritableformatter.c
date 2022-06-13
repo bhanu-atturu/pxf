@@ -433,6 +433,23 @@ verifyExternalTableDefinition(int16 ncolumns_remote, AttrNumber nvalidcolumns, A
 	}
 }
 
+static void
+parse_params(FunctionCallInfo fcinfo, format_t *myData) {
+	int nargs = FORMATTER_GET_NUM_ARGS(fcinfo);
+	ereport(DEBUG1, (errmsg("number of formatter args: %d", nargs)));
+
+	for (int i = 0; i < nargs; i++)
+	{
+		const char *key = FORMATTER_GET_NTH_ARG_KEY(fcinfo, i + 1);
+		const char *val = FORMATTER_GET_NTH_ARG_VAL(fcinfo, i + 1);
+
+		if (strcmp("dump_core_on_error", key) == 0 && strcmp("1", val) == 0)
+		{
+			myData->formatter_error_level = PANIC;
+		}
+	}
+}
+
 Datum
 gpdbwritableformatter_export(PG_FUNCTION_ARGS)
 {
@@ -484,6 +501,9 @@ gpdbwritableformatter_export(PG_FUNCTION_ARGS)
 		myData->outpadlen = palloc(sizeof(int) * ncolumns);
 		myData->io_functions = palloc(sizeof(FmgrInfo) * ncolumns);
 		myData->export_format_tuple = makeStringInfo();
+		myData->formatter_error_level = ERROR;
+
+		parse_params(fcinfo, myData);
 
 		/* setup the text/binary input function */
 		for (i = 0; i < ncolumns; i++)
@@ -667,23 +687,6 @@ gpdbwritableformatter_export(PG_FUNCTION_ARGS)
 	Insist(myData->export_format_tuple->len == datlen + VARHDRSZ);
 	SET_VARSIZE(myData->export_format_tuple->data, datlen + VARHDRSZ);
 	PG_RETURN_BYTEA_P(myData->export_format_tuple->data);
-}
-
-static void
-parse_params(FunctionCallInfo fcinfo, format_t *myData) {
-	int nargs = FORMATTER_GET_NUM_ARGS(fcinfo);
-	ereport(DEBUG1, (errmsg("number of formatter args: %d", nargs)));
-
-	for (int i = 0; i < nargs; i++)
-	{
-		const char *key = FORMATTER_GET_NTH_ARG_KEY(fcinfo, i + 1);
-		const char *val = FORMATTER_GET_NTH_ARG_VAL(fcinfo, i + 1);
-
-		if (strcmp("dump_core_on_error", key) == 0 && strcmp("1", val) == 0)
-		{
-			myData->formatter_error_level = PANIC;
-		}
-	}
 }
 
 Datum
