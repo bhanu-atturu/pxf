@@ -1,0 +1,85 @@
+---
+platform: linux
+
+image_resource:
+  type: registry-image
+
+inputs:
+- name: pxf_src
+- name: gpdb_package
+
+params:
+  SRP_CLIENT_ID:
+  SRP_CLIENT_SECRET:
+  INSTANCE_NAME:
+  NAMESPACE:
+  PIPELINE_NAME:
+  JOB_NAME:
+
+run:
+  path: bash
+  args:
+  - -c
+  - |
+    set -eu
+    GPDB_PKG_DIR=gpdb_package
+    GPDB_VERSION=$(<"${GPDB_PKG_DIR}/version")
+    pkg_file=$(find "${GPDB_PKG_DIR}" -name "greenplum-db-${GPDB_VERSION}-rhel*-x86_64.rpm")
+    echo "Installing RPM ${pkg_file}..."
+    rpm --quiet -ivh "${pkg_file}" >/dev/null
+    GPHOME=$(find /usr/local/ -name "greenplum-db-${GPDB_VERSION}*")
+    source "${GPHOME}/greenplum_path.sh"
+    source ~/.pxfrc
+    unset PYTHONHOME
+    unset PYTHONPATH
+
+    echo "Download the SRP CLI which we use to create source provenance"
+    mkdir /tmp/srp-tools
+    pushd /tmp/srp-tools
+    wget --quiet https://artifactory.eng.vmware.com/artifactory/helix-docker-local/cli/srpcli/0.2.20220621225723-adcccb6-18/linux/srp
+    chmod +x srp
+    /tmp/srp-tools/srp --version
+    echo "Download and extract the Build Observer which monitors dependency fetching"
+    wget --quiet https://artifactory.eng.vmware.com/osspicli-local/observer/linux-observer-1.0.4.tar.gz
+    tar xzf linux-observer-1.0.4.tar.gz
+    popd
+    echo "Authenticating to SRP server"
+    /tmp/srp-tools/srp config auth --client-id=${SRP_CLIENT_ID} --client-secret=${SRP_CLIENT_SECRET}
+    echo "Generating the basic source provenance"
+    pushd pxf_src
+    mkdir -p provenance
+    CURRENT_TIME_STRING=`date +%Y%m%d%H%M%S`
+    BUILD_NUMBER="bld-${CURRENT_TIME_STRING}"  
+    OBJ_UID="uid.obj.build.concourse(instance=${INSTANCE_NAME},namespace=${NAMESPACE},pipeline=${PIPELINE_NAME},job=${JOB_NAME},build_id=${BUILD_NUMBER})"
+    BUILD_VERSION=`git describe --tags | perl -pe 's/(.*)-([0-9]*)-(g[0-9a-f]*)/\1+dev.\2.\3/'`
+    /tmp/srp-tools/srp provenance source \
+    --scm-type git \
+    --name "srp-pxf" \
+    --path ./ \
+    --saveto ./provenance/source.json \
+    --comp-uid "$OBJ_UID" \
+    --build-number "$BUILD_NUMBER" \
+    --version $BUILD_VERSION \
+    --all-ephemeral true \
+    --build-type release
+    echo "------------------ SOURCE PROVENANCE -----------------------------------"
+    cat ./provenance/source.json
+    echo "------------------------------------------------------------------------"
+    echo "Fetching all dependencies under the observer"
+    /tmp/srp-tools/bin/observer_agent.bash -t -o ./ -- make
+    mv provenance.json ./provenance/network.json
+    echo "------------------ NETWORK PROVENANCE -----------------------------------"
+    cat ./provenance/network.json
+    echo "------------------------------------------------------------------------"
+    echo "Merging the source and network provenance documents"
+    /tmp/srp-tools/srp provenance merge --source ./provenance/source.json --network ./provenance/network.json --saveto ./provenance/merged.json
+    echo "------------------ MERGED PROVENANCE -----------------------------------"
+    cat ./provenance/merged.json
+    echo "------------------------------------------------------------------------"
+    echo "Submitting the merged provenance to SRP"
+    REVISION=`date +%Y%m%d%H%M%S`
+    FRAGMENT_UID="uid.mtd.provenance_2_5.fragment(obj_uid=${OBJ_UID},revision=${REVISION})"
+    echo "Will submit to MDS with ${FRAGMENT_UID}"
+    /tmp/srp-tools/srp metadata submit \
+    --uid ${FRAGMENT_UID} \
+    --path ./provenance/merged.json

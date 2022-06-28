@@ -389,6 +389,17 @@ jobs:
     params:
       LICENSE: ((pxf-rpm-license))
       VENDOR: ((pxf-rpm-vendor))
+  - task: generate-source-provenance-file
+    tags: [vsphere]
+    image: gpdb[[gp_ver]]-pxf-dev-centos7-image
+    file: pxf_src/concourse/tasks/generate-source-provenance-file.yml
+    params:
+      SRP_CLIENT_ID: ((srp-client-id))
+      SRP_CLIENT_SECRET: ((srp-client-secret))
+      INSTANCE_NAME: "greenplum"
+      NAMESPACE: "main"
+      PIPELINE_NAME: "pxf-build"
+      JOB_NAME: "Build PXF-GP[[gp_ver]] on RHEL7"
   - put: pxf_gp[[gp_ver]]_tarball_rhel7
     params:
       file: dist/pxf-gp[[gp_ver]]-*.el7.tar.gz
